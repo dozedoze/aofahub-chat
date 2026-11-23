@@ -70,6 +70,29 @@ const updateBlock = (
   return { ...reply, blocks }
 }
 
+/** message_delta 只带输出量（输入全为 0）时，沿用 message_start 里的输入量。 */
+const mergeUsage = (
+  previous: AssistantMessage['usage'],
+  incoming: AssistantMessage['usage']
+): AssistantMessage['usage'] => {
+  if (!incoming || !previous) {
+    return incoming ?? previous
+  }
+  const inputless =
+    incoming.input_tokens +
+      incoming.cache_creation_input_tokens +
+      incoming.cache_read_input_tokens ===
+    0
+  return inputless
+    ? {
+        ...incoming,
+        input_tokens: previous.input_tokens,
+        cache_creation_input_tokens: previous.cache_creation_input_tokens,
+        cache_read_input_tokens: previous.cache_read_input_tokens,
+      }
+    : incoming
+}
+
 /**
  * 把一个流式事件合并进回复：只追加可识别的内容块，用本次请求的临时索引映射处理增量。
  * 跳过的块不占位；续写直接追加到已有内容之后，message_delta 更新结束原因与累计用量。
@@ -134,7 +157,7 @@ export const applyEvent = (
         ...next,
         stopReason: event.delta.stop_reason,
         stopDetails: event.delta.stop_details,
-        usage: event.usage ?? next.usage,
+        usage: mergeUsage(next.usage, event.usage),
       }
     default:
       return next

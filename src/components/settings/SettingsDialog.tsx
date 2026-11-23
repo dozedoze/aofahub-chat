@@ -6,6 +6,7 @@ import {
   IconDownloadOutline16,
   IconFollowsystemOutline16,
   IconLightOutline16,
+  IconLinkOutline16,
   IconSettingsOutline16,
   IconUploadOutline14,
   IconUsageOutline16,
@@ -35,6 +36,7 @@ import { Button } from '../base/Button.js'
 import { Modal } from '../base/Modal.js'
 import { Select } from '../base/Select.js'
 import { showToast } from '../base/toastState.js'
+import { ExtensionsSettings } from './ExtensionsSettings.js'
 import { closeSettings, useSettingsDialog, type SettingsSection } from './settingsDialogState.js'
 import styles from './Settings.module.css'
 
@@ -52,6 +54,11 @@ const sections: { value: SettingsSection; label: TranslationKey; icon: ReactNode
     value: 'general',
     label: 'settingDialogAsideGeneralOptionLabel',
     icon: <IconSettingsOutline16 />,
+  },
+  {
+    value: 'extensions',
+    label: 'settingDialogAsideExtensionsOptionLabel',
+    icon: <IconLinkOutline16 />,
   },
   { value: 'data', label: 'settingDialogAsideDataOptionLabel', icon: <IconDataOutline16 /> },
 ]
@@ -103,6 +110,8 @@ const SettingsContent = () => {
               <TtsVoiceSetting />
               <LocationSetting />
             </>
+          ) : section === 'extensions' ? (
+            <ExtensionsSettings />
           ) : (
             <>
               <ImportHistory historyImport={historyImport} disabled={historyBusy} />
@@ -369,7 +378,14 @@ const UsageModal = ({ usage, onClose }: { usage: UsageSnapshot; onClose: () => v
   const t = useTranslate()
   const percent = usage.percent
   const fill = Math.min(100, Math.max(0, percent ?? 0))
-  const tone = percent == null ? '' : percent >= 100 ? styles.usageFillOver : percent >= 80 ? styles.usageFillWarn : ''
+  const tone =
+    percent == null
+      ? ''
+      : percent >= 100
+        ? styles.usageFillOver
+        : percent >= 80
+          ? styles.usageFillWarn
+          : ''
   return (
     <Modal title={t('usage')} className={styles.usageDialog} closable onClose={onClose}>
       <div className={styles.usageHead}>
@@ -390,11 +406,19 @@ const UsageModal = ({ usage, onClose }: { usage: UsageSnapshot; onClose: () => v
             {t('usageRequests', { count: usage.requestCount })}
           </div>
         ) : (
-          <div className={styles.usageMeta}>{t('usageRequests', { count: usage.requestCount })}</div>
+          <div className={styles.usageMeta}>
+            {t('usageRequests', { count: usage.requestCount })}
+          </div>
         )}
       </div>
       {percent != null ? (
-        <div className={styles.usageBar} role="progressbar" aria-valuenow={fill} aria-valuemin={0} aria-valuemax={100}>
+        <div
+          className={styles.usageBar}
+          role="progressbar"
+          aria-valuenow={fill}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
           <div className={clsx(styles.usageFill, tone)} style={{ width: `${fill}%` }} />
         </div>
       ) : (
@@ -409,9 +433,7 @@ const UsageModal = ({ usage, onClose }: { usage: UsageSnapshot; onClose: () => v
         <ul className={styles.usageRecent}>
           {usage.recent.map((call, index) => (
             <li key={`${call.at}-${index}`}>
-              <span>
-                {[call.provider, call.model].filter(Boolean).join('/') || t('model')}
-              </span>
+              <span>{[call.provider, call.model].filter(Boolean).join('/') || t('model')}</span>
               <span>{formatTokens(call.tokens)}</span>
             </li>
           ))}

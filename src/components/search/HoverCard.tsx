@@ -1,6 +1,6 @@
 import { useEffect, type HTMLAttributes, type MutableRefObject, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { useAnchoredPosition, useDelayedOpen } from '../base/anchored.js'
+import { useAnchoredPosition, useDelayedOpen, type Side } from '../base/anchored.js'
 import styles from './HoverCard.module.css'
 
 const ENTER_DELAY = 300
@@ -15,15 +15,18 @@ export type HoverCardTrigger = (props: {
 /** 悬停 300ms 后在触发元素下方显示卡片（放不下则上方），鼠标可移入卡片 */
 export const HoverCard = ({
   renderTrigger,
+  side,
   children,
 }: {
   renderTrigger: HoverCardTrigger
+  /** 优先出现的一侧，放不下时翻面；默认在下方 */
+  side?: Side
   children: ReactNode
 }) => {
   const { open, schedule, cancel } = useDelayedOpen()
   const { anchorRef, floatingRef, position } = useAnchoredPosition<HTMLSpanElement, HTMLDivElement>(
     open,
-    { align: 'center', offset: GAP }
+    { align: 'center', offset: GAP, side }
   )
 
   useEffect(() => () => cancel(), [cancel])

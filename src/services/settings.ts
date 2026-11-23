@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { TtsVoice } from './api/speech.js'
-import { fetchModels } from './auth.js'
+import { fetchModels, type ThinkingMode } from './auth.js'
 import { normalizeLocation, type UserLocation } from './location.js'
 
 export type Locale = 'zh-CN' | 'en-US'
@@ -18,6 +18,8 @@ type Settings = {
   models: string[]
   /** 网关 /models 返回的上下文窗口（token），缺省时按模型名估算 */
   contextWindows: Record<string, number>
+  /** 网关 /models 返回的深度思考能力；老网关没有这个字段，按可开关处理 */
+  thinkingModes: Record<string, ThinkingMode>
   thinking: boolean
   search: boolean
   siderCollapsed: boolean
@@ -107,6 +109,7 @@ export const useSettings = create<Settings>(() => {
     model: initialModel(),
     models: ['auto'],
     contextWindows: {},
+    thinkingModes: {},
     thinking: read(KEYS.thinking) === 'true',
     search: read(KEYS.search) === 'true',
     siderCollapsed: read(KEYS.siderCollapsed) === 'true',
@@ -140,7 +143,7 @@ export const setModel = (model: string) => {
 }
 
 export const refreshModels = async () => {
-  const { ids: models, contextWindows } = await fetchModels()
+  const { ids: models, contextWindows, thinkingModes } = await fetchModels()
   const current = useSettings.getState().model
   const model = models.includes(current)
     ? current
@@ -148,7 +151,27 @@ export const refreshModels = async () => {
       ? 'auto'
       : (models[0] ?? 'auto')
   write(KEYS.model, model)
-  useSettings.setState({ models, model, contextWindows })
+  useSettings.setState({ models, model, contextWindows, thinkingModes })
+}
+
+/** 这个模型的开关有没有意义：只有能控制思考的模型和 auto 才显示 */
+export const canToggleThinking = (mode: ThinkingMode | undefined) =>
+  mode === undefined || mode === 'toggle' || mode === 'effort' || mode === 'auto'
+
+/** 发请求时的思考状态：永远在思考的按开启记，不是推理模型按关闭记，认不出的交给回复内容决定 */
+export const effectiveThinking = (model: string): boolean | undefined => {
+  const { thinking, thinkingModes } = useSettings.getState()
+  const mode = thinkingModes[model]
+  switch (mode) {
+    case 'always':
+      return true
+    case 'none':
+      return false
+    case 'unknown':
+      return undefined
+    default:
+      return thinking
+  }
 }
 
 export const setThinking = (thinking: boolean) => {

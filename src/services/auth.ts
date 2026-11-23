@@ -49,8 +49,15 @@ export class LoginError extends Error {
   }
 }
 
-const readRetryAfter = (response: Response, error: { retry_after?: unknown }): number | undefined => {
-  if (typeof error.retry_after === 'number' && Number.isFinite(error.retry_after) && error.retry_after > 0) {
+const readRetryAfter = (
+  response: Response,
+  error: { retry_after?: unknown }
+): number | undefined => {
+  if (
+    typeof error.retry_after === 'number' &&
+    Number.isFinite(error.retry_after) &&
+    error.retry_after > 0
+  ) {
     return Math.ceil(error.retry_after)
   }
   const header = Number(response.headers.get('retry-after'))
@@ -135,10 +142,24 @@ export async function logout(): Promise<void> {
   expireSession()
 }
 
-export type ModelCatalog = { ids: string[]; contextWindows: Record<string, number> }
+/** 网关给的深度思考能力：toggle / effort 可开关，auto 开关表示走复杂档，其余控制不了 */
+export type ThinkingMode = 'toggle' | 'effort' | 'always' | 'none' | 'unknown' | 'auto'
+
+export type ModelCatalog = {
+  ids: string[]
+  contextWindows: Record<string, number>
+  thinkingModes: Record<string, ThinkingMode>
+}
+
+const THINKING_MODES: readonly string[] = ['toggle', 'effort', 'always', 'none', 'unknown', 'auto']
 
 const readContextWindow = (item: Record<string, unknown>): number | null => {
-  for (const key of ['context_length', 'context_window', 'max_input_tokens', 'max_context_length']) {
+  for (const key of [
+    'context_length',
+    'context_window',
+    'max_input_tokens',
+    'max_context_length',
+  ]) {
     const value = item[key]
     if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
       return Math.floor(value)
@@ -150,11 +171,12 @@ const readContextWindow = (item: Record<string, unknown>): number | null => {
 export async function fetchModels(): Promise<ModelCatalog> {
   const response = await fetch(`${API_ORIGIN}/models`, { credentials: 'include' })
   if (!response.ok) {
-    return { ids: ['auto'], contextWindows: {} }
+    return { ids: ['auto'], contextWindows: {}, thinkingModes: {} }
   }
   const body = (await response.json()) as { data?: Record<string, unknown>[] }
   const ids: string[] = []
   const contextWindows: Record<string, number> = {}
+  const thinkingModes: Record<string, ThinkingMode> = {}
   for (const item of body.data ?? []) {
     if (typeof item.id !== 'string' || !item.id) {
       continue
@@ -164,8 +186,11 @@ export async function fetchModels(): Promise<ModelCatalog> {
     if (windowSize) {
       contextWindows[item.id] = windowSize
     }
+    if (typeof item.thinking === 'string' && THINKING_MODES.includes(item.thinking)) {
+      thinkingModes[item.id] = item.thinking as ThinkingMode
+    }
   }
-  return { ids: ids.length ? ids : ['auto'], contextWindows }
+  return { ids: ids.length ? ids : ['auto'], contextWindows, thinkingModes }
 }
 
 export const isDeepseekModel = (model: string) => /deepseek/i.test(model)

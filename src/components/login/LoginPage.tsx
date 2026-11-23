@@ -103,14 +103,12 @@ export const LoginPage = () => {
         ) : (
           <>
             {error ? <p className={styles.err}>{error}</p> : null}
-            {fails > 0 ? <p className={styles.hint}>{t('loginAttemptsLeft', { count: attemptsLeft })}</p> : null}
+            {fails > 0 ? (
+              <p className={styles.hint}>{t('loginAttemptsLeft', { count: attemptsLeft })}</p>
+            ) : null}
           </>
         )}
-        <Button
-          type="submit"
-          size="m"
-          disabled={busy || locked || !username.trim() || !password}
-        >
+        <Button type="submit" size="m" disabled={busy || locked || !username.trim() || !password}>
           {busy ? t('loggingIn') : t('login')}
         </Button>
       </form>

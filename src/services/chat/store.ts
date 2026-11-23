@@ -6,7 +6,7 @@ import { extractFileIds, getFileErrorCode, isRetryableApiError } from '../api/er
 import { cancelUpload, describeUploadError, useUploads } from '../attachments.js'
 import { encodeFilePayload, type FilePayload } from './filePayload.js'
 import { isDeepseekModel } from '../auth.js'
-import { useSettings } from '../settings.js'
+import { effectiveThinking, useSettings } from '../settings.js'
 import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
 import * as db from './db.js'
 import {
@@ -25,6 +25,7 @@ import {
   settleReply,
   toRequestMessages,
 } from './reply.js'
+import { SYSTEM_PROMPT } from './systemPrompt.js'
 import { fallbackTitle, generateTitle } from './title.js'
 import {
   toSessionSummary,
@@ -37,8 +38,6 @@ import {
 } from './types.js'
 
 const defaultModel = (): ChatModel => useSettings.getState().model || 'auto'
-/** 所有生成请求统一携带的助手身份说明 */
-const SYSTEM_PROMPT = 'You are a helpful assistant.'
 /** 保留最近打开的详情；当前会话、生成中及尚未成功保存的会话不淘汰。 */
 const SESSION_CACHE_LIMIT = 5
 /** 安全审核固定开启，所有请求都走扩展模式 */
@@ -258,13 +257,14 @@ export const bindChatPersistence = () => {
 
 /** 按当前开关创建回复：深度思考对应 thinking，智能搜索控制 deepseek_web_search。 */
 const createReply = (): AssistantMessage => {
-  const { thinking, search } = useSettings.getState()
+  const { search } = useSettings.getState()
+  const model = defaultModel()
   return {
     id: createId(),
     role: 'assistant',
     createdAt: Date.now(),
-    model: defaultModel(),
-    thinking,
+    model,
+    thinking: effectiveThinking(model),
     search,
     prefix: true,
     status: 'pending',
@@ -709,12 +709,13 @@ export const continueReply = (sessionId: string, messageId: string) => {
   ) {
     return
   }
-  const { thinking, search } = useSettings.getState()
+  const { search } = useSettings.getState()
+  const model = previous.model ?? defaultModel()
   const reply: AssistantMessage = {
     ...previous,
     // 未记录请求配置的回复，续写时使用默认模型和当前开关。
-    model: previous.model ?? defaultModel(),
-    thinking: previous.thinking ?? thinking,
+    model,
+    thinking: previous.thinking ?? effectiveThinking(model),
     search: previous.search ?? search,
     status: 'pending',
     stopReason: undefined,

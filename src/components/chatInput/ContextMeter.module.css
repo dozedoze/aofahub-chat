@@ -39,3 +39,143 @@
     stroke: var(--dsw-alias-state-error-primary);
   }
 }
+
+/* 悬停卡片：总量、分项条与图例 */
+.card {
+  width: 292px;
+  max-width: 100%;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.title {
+  font-weight: 600;
+}
+
+.badge {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+}
+
+.total {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.used {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.limit {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.bar {
+  display: flex;
+  overflow: hidden;
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 3px;
+  background: var(--dsw-alias-border-l2);
+}
+
+.slice {
+  flex: none;
+  min-width: 2px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.share {
+  width: 38px;
+  color: var(--dsw-alias-label-tertiary);
+  text-align: right;
+}
+
+.note {
+  margin: 8px 0 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+}
+
+/* 分项颜色，条与图例共用 */
+.server {
+  background: var(--dsw-static-neutral-bluish-400);
+}
+
+.system {
+  background: var(--dsw-static-neutral-bluish-600);
+}
+
+.user {
+  background: var(--dsw-static-blue-500);
+}
+
+.attachments {
+  background: var(--dsw-static-amber-500);
+}
+
+.assistant {
+  background: var(--dsw-static-green-500);
+}
+
+.web {
+  background: var(--dsw-static-blue-300);
+}
+
+.thinking {
+  background: var(--dsw-static-neutral-bluish-300);
+}
+
+.draft {
+  background: var(--dsw-static-blue-200);
+}

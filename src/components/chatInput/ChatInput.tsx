@@ -8,7 +8,13 @@ import {
   IconThinkOutline14,
 } from '../base/icons.js'
 import { isDeepseekModel } from '../../services/auth.js'
-import { setModel, setSearch, setThinking, useSettings } from '../../services/settings.js'
+import {
+  canToggleThinking,
+  setModel,
+  setSearch,
+  setThinking,
+  useSettings,
+} from '../../services/settings.js'
 import { useIsMobile } from '../../app/viewport.js'
 import { sendMessage, stopReply, useChatStore } from '../../services/chat/store.js'
 import {
@@ -57,6 +63,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   const search = useSettings((state) => state.search)
   const model = useSettings((state) => state.model)
   const models = useSettings((state) => state.models)
+  const thinkingMode = useSettings((state) => state.thinkingModes[state.model])
   const deepseek = isDeepseekModel(model)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -213,18 +220,24 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
             options={(models.length ? models : ['auto']).map((id) => ({ value: id, label: id }))}
             onChange={setModel}
           />
-          <Tooltip content={t('deactivatedThinkTooltip')}>
-            <button
-              type="button"
-              className={clsx(styles.toggle, thinking && styles.selected)}
-              aria-label={t('thinkingSwitch')}
-              aria-pressed={thinking}
-              onClick={() => setThinking(!thinking)}
+          {canToggleThinking(thinkingMode) ? (
+            <Tooltip
+              content={t(
+                thinkingMode === 'auto' ? 'thinkingAutoTooltip' : 'deactivatedThinkTooltip'
+              )}
             >
-              <IconThinkOutline14 />
-              <span className={styles.toggleLabel}>{t('thinkingSwitch')}</span>
-            </button>
-          </Tooltip>
+              <button
+                type="button"
+                className={clsx(styles.toggle, thinking && styles.selected)}
+                aria-label={t('thinkingSwitch')}
+                aria-pressed={thinking}
+                onClick={() => setThinking(!thinking)}
+              >
+                <IconThinkOutline14 />
+                <span className={styles.toggleLabel}>{t('thinkingSwitch')}</span>
+              </button>
+            </Tooltip>
+          ) : null}
           {deepseek ? (
             <Tooltip content={t('deactivatedSearchTooltip')}>
               <button
@@ -241,7 +254,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
           ) : null}
         </div>
         <div className={styles.right}>
-          <ContextMeter sessionId={sessionId} />
+          <ContextMeter sessionId={sessionId} draftText={text} draftAttachments={attachments} />
           {deepseek ? (
             <VoiceButton
               status={voice.status}
