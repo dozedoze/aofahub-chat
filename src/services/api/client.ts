@@ -1,20 +1,12 @@
 import { expireSession } from '../auth.js'
 import { translate, type TranslationMessage } from '../../i18n/index.js'
-import { resizeUploadImage } from '../../utils/resizeUploadImage.js'
 import { readMessageEvent } from './parseEvent.js'
 import { readServerSentEvents } from './sse.js'
-import type {
-  ApiErrorBody,
-  CreateMessageRequest,
-  FileObject,
-  FilePurpose,
-  MessageStreamEvent,
-} from './types.js'
+import type { ApiErrorBody, CreateMessageRequest, MessageStreamEvent } from './types.js'
 
 /** 构建期 API 地址，见 rspack.config.ts */
 export const API_ORIGIN = __API_ORIGIN__
 /** 聊天走托管 skill；默认 /anthropic/v1/messages 不注入通用 skill */
-const ANTHROPIC_BASE_URL = `${API_ORIGIN}/anthropic/v1`
 const SKILL_MESSAGES_URL = `${API_ORIGIN}/anthropic/v1/skill/messages`
 /** 引用 Files API 上传的图片、调用 Anthropic 兼容 Files API 时必须携带 */
 const FILES_BETA = 'files-api-2025-04-14'
@@ -92,34 +84,14 @@ const anthropicHeaders = (beta: boolean): Record<string, string> => ({
   ...(beta ? { 'anthropic-beta': FILES_BETA } : {}),
 })
 
-/**
- * POST /anthropic/v1/files 上传附件（不设过期时间，会话里的历史附件一直可用）。
- * purpose 为 null 时不传该字段（图片）；purpose 必须排在 file 之前。
- */
-export const uploadFile = async (
-  file: File,
-  purpose: FilePurpose | null,
-  signal?: AbortSignal
-): Promise<FileObject> => {
-  const form = new FormData()
-  if (purpose) {
-    form.append('purpose', purpose)
-  }
-  form.append('file', purpose === null ? await resizeUploadImage(file, signal) : file)
-  const response = await request(`${ANTHROPIC_BASE_URL}/files`, {
-    method: 'POST',
-    headers: anthropicHeaders(true),
-    body: form,
-    signal,
-  })
-  return (await response.json()) as FileObject
-}
-
-const hasFile = (body: CreateMessageRequest) =>
+const hasFileId = (body: CreateMessageRequest) =>
   body.messages.some(
     (message) =>
       typeof message.content !== 'string' &&
-      message.content.some((block) => block.type === 'image' || block.type === 'document')
+      message.content.some(
+        (block) =>
+          (block.type === 'image' || block.type === 'document') && block.source.type === 'file'
+      )
   )
 
 /**
@@ -128,12 +100,14 @@ const hasFile = (body: CreateMessageRequest) =>
  */
 export async function* streamMessage(
   body: CreateMessageRequest,
-  signal: AbortSignal
+  signal: AbortSignal,
+  sessionId?: string
 ): AsyncGenerator<MessageStreamEvent> {
   const response = await request(SKILL_MESSAGES_URL, {
     method: 'POST',
     headers: {
-      ...anthropicHeaders(hasFile(body)),
+      ...anthropicHeaders(hasFileId(body)),
+      ...(sessionId ? { 'x-session-id': sessionId } : {}), // 粘性会话：钉上游账号并隔离窗口
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
     },

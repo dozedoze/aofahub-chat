@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   IconDarkOutline16,
   IconDataOutline16,
@@ -8,6 +8,7 @@ import {
   IconLightOutline16,
   IconSettingsOutline16,
   IconUploadOutline14,
+  IconUsageOutline16,
 } from '../base/icons.js'
 import {
   BackupError,
@@ -17,7 +18,8 @@ import {
 } from '../../services/chat/backup.js'
 import { useChatStore } from '../../services/chat/store.js'
 import { regionCodes, getRegionName, provinces } from '../../services/location.js'
-import { logout, useAuth } from '../../services/auth.js'
+import { fetchUsage, logout, useAuth, type UsageSnapshot } from '../../services/auth.js'
+import { formatTokens } from '../../utils/format.js'
 import {
   isChineseBrowser,
   setLocale,
@@ -94,6 +96,7 @@ const SettingsContent = () => {
           {section === 'general' ? (
             <>
               <AccountSetting />
+              <UsageSetting />
               <ModelSetting />
               <ThemeSetting />
               <LocaleSetting />
@@ -285,6 +288,136 @@ const AccountSetting = () => {
         </Button>
       }
     />
+  )
+}
+
+const UsageSetting = () => {
+  const t = useTranslate()
+  const [open, setOpen] = useState(false)
+  const [usage, setUsage] = useState<UsageSnapshot | null>(null)
+  const [error, setError] = useState(false)
+  const [busy, setBusy] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setBusy(true)
+    void fetchUsage()
+      .then((data) => {
+        if (!cancelled) {
+          setUsage(data)
+          setError(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError(true)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setBusy(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const summary = error
+    ? t('usageLoadFailed')
+    : usage
+      ? usage.percent == null
+        ? `${t('usageUsed', { used: formatTokens(usage.usedTokens) })} · ${t('usageUnlimited')}`
+        : `${t('usagePercent', { percent: usage.percent })} · ${t('usageUsed', { used: formatTokens(usage.usedTokens) })}`
+      : busy
+        ? '…'
+        : t('usageLoadFailed')
+
+  return (
+    <>
+      <SettingCell
+        label={t('usage')}
+        status={null}
+        description={summary}
+        action={
+          <Button
+            variant="outlined"
+            size="m"
+            className={styles.cellButton}
+            disabled={busy || error || !usage}
+            onClick={() => {
+              setOpen(true)
+              void fetchUsage()
+                .then((data) => {
+                  setUsage(data)
+                  setError(false)
+                })
+                .catch(() => {})
+            }}
+          >
+            <IconUsageOutline16 />
+            {t('usageView')}
+          </Button>
+        }
+      />
+      {open && usage ? <UsageModal usage={usage} onClose={() => setOpen(false)} /> : null}
+    </>
+  )
+}
+
+const UsageModal = ({ usage, onClose }: { usage: UsageSnapshot; onClose: () => void }) => {
+  const t = useTranslate()
+  const percent = usage.percent
+  const fill = Math.min(100, Math.max(0, percent ?? 0))
+  const tone = percent == null ? '' : percent >= 100 ? styles.usageFillOver : percent >= 80 ? styles.usageFillWarn : ''
+  return (
+    <Modal title={t('usage')} className={styles.usageDialog} closable onClose={onClose}>
+      <div className={styles.usageHead}>
+        <div className={styles.usagePercent}>
+          {percent == null ? t('usageUnlimited') : t('usagePercent', { percent })}
+        </div>
+        <div className={styles.usageMeta}>
+          {t('usageUsed', { used: formatTokens(usage.usedTokens) })}
+          {' · '}
+          {usage.quotaTokens === 0
+            ? t('usageUnlimited')
+            : t('usageQuota', { quota: formatTokens(usage.quotaTokens) })}
+        </div>
+        {usage.remainingTokens != null ? (
+          <div className={styles.usageMeta}>
+            {t('usageRemaining', { remaining: formatTokens(usage.remainingTokens) })}
+            {' · '}
+            {t('usageRequests', { count: usage.requestCount })}
+          </div>
+        ) : (
+          <div className={styles.usageMeta}>{t('usageRequests', { count: usage.requestCount })}</div>
+        )}
+      </div>
+      {percent != null ? (
+        <div className={styles.usageBar} role="progressbar" aria-valuenow={fill} aria-valuemin={0} aria-valuemax={100}>
+          <div className={clsx(styles.usageFill, tone)} style={{ width: `${fill}%` }} />
+        </div>
+      ) : (
+        <div className={styles.usageBar} aria-hidden="true">
+          <div className={styles.usageFill} style={{ width: '100%', opacity: 0.35 }} />
+        </div>
+      )}
+      <div className={styles.usageRecentLabel}>{t('usageRecent')}</div>
+      {usage.recent.length === 0 ? (
+        <div className={styles.usageEmpty}>{t('usageEmpty')}</div>
+      ) : (
+        <ul className={styles.usageRecent}>
+          {usage.recent.map((call, index) => (
+            <li key={`${call.at}-${index}`}>
+              <span>
+                {[call.provider, call.model].filter(Boolean).join('/') || t('model')}
+              </span>
+              <span>{formatTokens(call.tokens)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Modal>
   )
 }
 

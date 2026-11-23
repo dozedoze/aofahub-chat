@@ -3,13 +3,8 @@ import { createId } from '../../utils/id.js'
 import { ApiError, streamMessage } from '../api/client.js'
 import type { ChatModel, CreateMessageRequest } from '../api/types.js'
 import { extractFileIds, getFileErrorCode, isRetryableApiError } from '../api/errors.js'
-import {
-  cancelUpload,
-  checkImageFileIds,
-  describeUploadError,
-  uploadAttachment,
-  useUploads,
-} from '../attachments.js'
+import { cancelUpload, describeUploadError, useUploads } from '../attachments.js'
+import { encodeFilePayload, type FilePayload } from './filePayload.js'
 import { isDeepseekModel } from '../auth.js'
 import { useSettings } from '../settings.js'
 import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
@@ -594,10 +589,9 @@ export const sendMessage = (targetSessionId: string | null) => {
     id: createId(),
     role: 'user',
     content: text,
-    files: files.map(({ id, serverId, name, size, isImage, mimeType }) => ({
+    files: files.map(({ id, name, size, isImage, mimeType }) => ({
       id,
-      serverId,
-      // 草稿附件已上传成功，每张图片都在上传前检查过长边，超限的已缩小。
+      serverId: null,
       imageSizeChecked: isImage,
       name,
       size,
@@ -757,52 +751,19 @@ export const retryUpload = (sessionId: string, messageId: string) => {
   void streamReply(sessionId, reply, { history: path.slice(0, index - 1), question })
 }
 
-type Request = { history: Message[]; question: UserMessage; prefix?: AssistantMessage }
-
-/**
- * 将 serverId 写回所有引用同一附件的消息。传入 null 会清除超限旧图的 ID，触发补传。
- * 尺寸标记随有效 ID 保存，因为本地保留的是原图，刷新后可以直接复用已检查的上传副本。
- */
-const saveServerIds = (sessionId: string, serverIds: ReadonlyMap<string, string | null>) => {
-  if (serverIds.size === 0) {
-    return
-  }
-  updateSession(sessionId, (session) => ({
-    ...session,
-    messages: session.messages.map((message) =>
-      message.role === 'user' && message.files.some((file) => serverIds.has(file.id))
-        ? {
-            ...message,
-            files: message.files.map((file) => {
-              const serverId = serverIds.get(file.id)
-              return serverId === undefined
-                ? file
-                : { ...file, serverId, imageSizeChecked: file.isImage && serverId !== null }
-            }),
-          }
-        : message
-    ),
-  }))
-  persist(sessionId)
+type Request = {
+  history: Message[]
+  question: UserMessage
+  prefix?: AssistantMessage
+  payloads?: ReadonlyMap<string, FilePayload>
 }
 
-/**
- * 附件的服务端 id：已有直接用；正在上传的等待同一任务；否则读取本地原件补传。
- * 本地也没有原件（导入的文档附件只有元数据）时返回 null，该附件只展示、不进入请求。
- */
-const ensureServerId = async (file: FileAttachment): Promise<string | null> => {
-  if (file.serverId) {
-    return file.serverId
-  }
+const loadAttachmentBlob = async (file: FileAttachment): Promise<Blob | null> => {
   const task = useUploads.getState().tasks[file.id]
   if (task?.status === 'done') {
-    return task.serverId
+    return task.blob
   }
-  const blob = await db.loadFile(file.id)
-  if (!blob) {
-    return null
-  }
-  return uploadAttachment(file.id, blob, file.name, file.isImage)
+  return (await db.loadFile(file.id)) ?? null
 }
 
 /** 用会话里的最新消息替换请求快照：重传前会重置附件的 serverId，快照必须跟着更新 */
@@ -822,79 +783,49 @@ const refreshRequest = (sessionId: string, request: Request): Request => {
 }
 
 /**
- * 发送前补齐附件的 serverId。
- * - 本轮提问的附件并行补齐，任一失败则整体失败，已成功的照常写回，重试时复用成功结果；
- * - 历史轮次（仅进入上下文的）中没有 serverId 的附件，多为导入的图片：从最新的消息往前逐张补传，
- *   失败静默跳过，该附件不进入本次请求，下次发送时再试。
+ * 发送前把本地附件编进请求：本轮附件失败则整轮失败；历史附件缺原件时跳过，下次再试。
  */
 const prepareFiles = async (sessionId: string, request: Request, signal: AbortSignal) => {
-  const epoch = historyEpoch
-  // 服务端判定 file_id 失效时会清掉会话里的 serverId，先用最新消息替换请求快照，
-  // 否则快照里仍是旧 id，补传会直接复用它。
   request = refreshRequest(sessionId, request)
-  const serverIds = new Map<string, string>()
-  // 停止生成立即生效；上传本身不取消（输入框与其他消息可能共用同一任务），完成后照常写回 serverId
   const aborted = new Promise<never>((_, reject) => {
     signal.addEventListener('abort', () => reject(signal.reason), { once: true })
   })
-  // 旧图片超限时先清除 ID，交给下方已有的附件补传流程。
-  const files = [
-    ...request.question.files,
-    ...getContextRounds(request.history).flatMap(([user]) => user.files),
-  ]
-  const checked = await Promise.race([checkImageFileIds(files, signal), aborted])
-  if (checked.size > 0) {
-    saveServerIds(sessionId, checked)
-    request = refreshRequest(sessionId, request)
-  }
-  const uploads = Promise.allSettled(
-    request.question.files.map(async (file) => {
-      const serverId = await ensureServerId(file)
-      if (serverId && serverId !== file.serverId) {
-        serverIds.set(file.id, serverId)
-      }
-    })
-  )
-  void uploads.then(() => {
-    if (epoch === historyEpoch) {
-      saveServerIds(sessionId, serverIds)
+  const payloads = new Map<string, FilePayload>()
+  const encode = async (file: FileAttachment, required: boolean) => {
+    if (payloads.has(file.id)) {
+      return
     }
-  })
-  const results = await Promise.race([uploads, aborted])
-  const failed = results.find((result) => result.status === 'rejected')
-  if (failed) {
-    throw failed.reason
+    const blob = await loadAttachmentBlob(file)
+    if (!blob) {
+      if (required) {
+        throw new Error('Missing attachment')
+      }
+      return
+    }
+    payloads.set(file.id, await encodeFilePayload(file, blob, signal))
   }
-
-  const pending = new Map<string, FileAttachment>()
+  await Promise.race([
+    Promise.all(request.question.files.map((file) => encode(file, true))),
+    aborted,
+  ])
   for (const [user] of getContextRounds(request.history).toReversed()) {
     for (const file of user.files) {
-      if (!file.serverId && !serverIds.has(file.id) && !pending.has(file.id)) {
-        pending.set(file.id, file)
+      if (payloads.has(file.id)) {
+        continue
       }
-    }
-  }
-  for (const file of pending.values()) {
-    signal.throwIfAborted()
-    try {
-      const serverId = await Promise.race([ensureServerId(file), aborted])
-      if (serverId) {
-        serverIds.set(file.id, serverId)
-        saveServerIds(sessionId, new Map([[file.id, serverId]]))
-      }
-    } catch {
       signal.throwIfAborted()
+      try {
+        await Promise.race([encode(file, false), aborted])
+      } catch {
+        signal.throwIfAborted()
+      }
     }
   }
-
-  // 用补齐后的会话重新取历史与提问，保证请求里都是 serverId
-  const session = getSession(sessionId)
-  const resolve = <T extends Message>(message: T): T =>
-    (session?.messages.find((m) => m.id === message.id) as T | undefined) ?? message
   return {
-    history: request.history.map(resolve),
-    question: resolve(request.question),
+    history: request.history,
+    question: request.question,
     prefix: request.prefix,
+    payloads,
   }
 }
 
@@ -1012,19 +943,21 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
         reply = { ...reply, latestReminder }
         updateReply(sessionId, reply)
         persist(sessionId)
+        const model = initial.model ?? defaultModel()
+        const deepseek = isDeepseekModel(model)
         const messages = toRequestMessages(
           prepared.history,
           prepared.question,
           prepared.prefix,
           initial.thinking ?? false,
-          latestReminder
+          deepseek ? latestReminder : undefined,
+          prepared.payloads
         )
-        const model = initial.model ?? defaultModel()
-        const deepseek = isDeepseekModel(model)
         const events = streamMessage(
           {
             model,
-            system: SYSTEM_PROMPT,
+            system:
+              !deepseek && latestReminder ? `${SYSTEM_PROMPT}\n${latestReminder}` : SYSTEM_PROMPT,
             messages,
             thinking: { type: initial.thinking ? 'enabled' : 'disabled' },
             ...(deepseek
@@ -1035,7 +968,8 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
                 }
               : {}),
           },
-          controller.signal
+          controller.signal,
+          sessionId
         )
         const blockIndexes = new Map<number, number>()
         for await (const event of events) {

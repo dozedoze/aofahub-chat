@@ -1,11 +1,8 @@
 import { create } from 'zustand'
 import type { LinkedMessage, TranslationMessage } from '../i18n/index.js'
-import { isUploadImageOversized } from '../utils/resizeUploadImage.js'
-import { uploadFile } from './api/client.js'
+import { resizeUploadImage } from '../utils/resizeUploadImage.js'
 import { classifyApiError, getUploadErrorInfo, isRetryableApiError } from './api/errors.js'
 import type { FilePurpose } from './api/types.js'
-import { loadFile } from './chat/db.js'
-import type { FileAttachment } from './chat/types.js'
 import { ACCEPT_FILE_EXTS } from './uploadExts.js'
 
 /** 允许上传的扩展名，按扩展名白名单过滤，清单见 uploadExts.ts */
@@ -119,9 +116,9 @@ const next = () => {
   }
 }
 
-/** 排队上传，最多同时上传 MAX_CONCURRENT 个；排队期间中止的任务不会发出请求 */
-const enqueueUpload = (file: Blob, name: string, isImage: boolean, signal: AbortSignal) =>
-  new Promise<string>((resolve, reject) => {
+/** 排队处理附件，最多同时 MAX_CONCURRENT 个；图片会先缩小。排队期间中止的任务不会开始。 */
+const enqueuePrepare = (file: Blob, name: string, isImage: boolean, signal: AbortSignal) =>
+  new Promise<Blob>((resolve, reject) => {
     queue.push(async () => {
       if (signal.aborted) {
         reject(signal.reason)
@@ -129,7 +126,7 @@ const enqueueUpload = (file: Blob, name: string, isImage: boolean, signal: Abort
       }
       try {
         const body = file instanceof File ? file : new File([file], name, { type: file.type })
-        resolve((await uploadFile(body, getUploadPurpose(name, isImage), signal)).id)
+        resolve(isImage ? await resizeUploadImage(body, signal) : body)
       } catch (error) {
         reject(error)
       }
@@ -138,13 +135,12 @@ const enqueueUpload = (file: Blob, name: string, isImage: boolean, signal: Abort
   })
 
 /**
- * 上传任务按附件的本地 id 登记：输入框选中即开始上传，全部成功后携带 serverId 发送，
- * 不会重复上传；导入的历史附件没有任务，发送前按本地原件补传。
- * 任务只在内存里，历史附件补传未完成时，刷新后会在下次请求前重新上传。
+ * 附件任务按本地 id 登记：输入框选中即开始处理（图片缩小），全部成功后才能发送。
+ * 原件留在本机，请求时内联，不再走 Files API。
  */
 export type UploadTask =
   | { status: 'uploading' }
-  | { status: 'done'; serverId: string }
+  | { status: 'done'; blob: Blob }
   | { status: 'error'; error: TranslationMessage; retryable: boolean }
 
 type UploadState = { tasks: Record<string, UploadTask> }
@@ -158,25 +154,25 @@ const setTask = (id: string, task: UploadTask | null) =>
       : Object.fromEntries(Object.entries(state.tasks).filter(([key]) => key !== id)),
   }))
 
-const pending = new Map<string, { promise: Promise<string>; controller: AbortController }>()
+const pending = new Map<string, { promise: Promise<Blob>; controller: AbortController }>()
 
-/** 开始（或复用进行中的）上传，返回服务端 file_id；失败时任务记为 error 并抛出原错误 */
+/** 开始（或复用进行中的）本地处理，返回可发送的原件；失败时任务记为 error 并抛出原错误 */
 export const uploadAttachment = (
   id: string,
   blob: Blob,
   name: string,
   isImage: boolean
-): Promise<string> => {
+): Promise<Blob> => {
   const current = pending.get(id)
   if (current) {
     return current.promise
   }
   const controller = new AbortController()
   setTask(id, { status: 'uploading' })
-  const promise = enqueueUpload(blob, name, isImage, controller.signal)
-    .then((serverId) => {
-      setTask(id, { status: 'done', serverId })
-      return serverId
+  const promise = enqueuePrepare(blob, name, isImage, controller.signal)
+    .then((ready) => {
+      setTask(id, { status: 'done', blob: ready })
+      return ready
     })
     .catch((error: unknown) => {
       if (controller.signal.aborted) {
@@ -204,30 +200,6 @@ export const uploadAttachment = (
 export const cancelUpload = (id: string) => {
   pending.get(id)?.controller.abort()
   setTask(id, null)
-}
-
-/** 检查旧图片的 file_id。超限返回 null 以触发补传，无法读取原件时保留原 ID。 */
-export const checkImageFileIds = async (files: FileAttachment[], signal: AbortSignal) => {
-  const checked = new Map<string, string | null>()
-  for (const file of files) {
-    if (!file.isImage || !file.serverId || file.imageSizeChecked || checked.has(file.id)) {
-      continue
-    }
-    signal.throwIfAborted()
-    const oversized = await loadFile(file.id)
-      .then((blob) => blob && isUploadImageOversized(blob))
-      .catch(() => undefined)
-    if (oversized === undefined) {
-      continue
-    }
-    signal.throwIfAborted()
-    const task = useUploads.getState().tasks[file.id]
-    if (oversized && task?.status === 'done' && task.serverId === file.serverId) {
-      cancelUpload(file.id)
-    }
-    checked.set(file.id, oversized ? null : file.serverId)
-  }
-  return checked
 }
 
 /** 各扩展名对应的 MIME：部分系统（如 Windows）给不出 file.type，按扩展名补齐 */

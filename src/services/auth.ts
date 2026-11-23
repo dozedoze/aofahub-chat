@@ -37,6 +37,26 @@ export async function bootstrapAuth(): Promise<void> {
   }
 }
 
+export class LoginError extends Error {
+  readonly status?: number
+  readonly retryAfter?: number
+
+  constructor(message: string, status?: number, retryAfter?: number) {
+    super(message)
+    this.name = 'LoginError'
+    this.status = status
+    this.retryAfter = retryAfter
+  }
+}
+
+const readRetryAfter = (response: Response, error: { retry_after?: unknown }): number | undefined => {
+  if (typeof error.retry_after === 'number' && Number.isFinite(error.retry_after) && error.retry_after > 0) {
+    return Math.ceil(error.retry_after)
+  }
+  const header = Number(response.headers.get('retry-after'))
+  return Number.isFinite(header) && header > 0 ? Math.ceil(header) : undefined
+}
+
 export async function login(username: string, password: string): Promise<ChatUser> {
   const response = await fetch(`${API_ORIGIN}/chat/api/login`, {
     method: 'POST',
@@ -46,14 +66,64 @@ export async function login(username: string, password: string): Promise<ChatUse
   })
   const data = (await response.json().catch(() => ({}))) as {
     username?: string
-    error?: { message?: string }
+    error?: { message?: string; retry_after?: unknown }
   }
   if (!response.ok) {
-    throw new Error(data.error?.message || 'Invalid username or password')
+    throw new LoginError(
+      data.error?.message || 'Invalid username or password',
+      response.status,
+      readRetryAfter(response, data.error ?? {})
+    )
   }
   const user = { username: data.username || username }
   useAuth.setState({ status: 'in', username: user.username })
   return user
+}
+
+export type UsageCall = { at: number; model: string; provider: string; tokens: number }
+
+export type UsageSnapshot = {
+  usedTokens: number
+  quotaTokens: number
+  remainingTokens: number | null
+  requestCount: number
+  percent: number | null
+  recent: UsageCall[]
+}
+
+export async function fetchUsage(): Promise<UsageSnapshot> {
+  const response = await fetch(`${API_ORIGIN}/chat/api/usage`, { credentials: 'include' })
+  if (response.status === 401) {
+    expireSession()
+    throw new Error('unauthorized')
+  }
+  if (!response.ok) {
+    throw new Error(`usage ${response.status}`)
+  }
+  const data = (await response.json()) as Partial<UsageSnapshot> & { ok?: boolean }
+  const usedTokens = typeof data.usedTokens === 'number' ? data.usedTokens : 0
+  const quotaTokens = typeof data.quotaTokens === 'number' ? data.quotaTokens : 0
+  const requestCount = typeof data.requestCount === 'number' ? data.requestCount : 0
+  const remainingTokens =
+    typeof data.remainingTokens === 'number' || data.remainingTokens === null
+      ? data.remainingTokens
+      : quotaTokens === 0
+        ? null
+        : Math.max(0, quotaTokens - usedTokens)
+  const percent =
+    typeof data.percent === 'number' || data.percent === null
+      ? data.percent
+      : quotaTokens === 0
+        ? null
+        : Math.min(100, Math.round((usedTokens / quotaTokens) * 1000) / 10)
+  return {
+    usedTokens,
+    quotaTokens,
+    remainingTokens,
+    requestCount,
+    percent,
+    recent: Array.isArray(data.recent) ? data.recent : [],
+  }
 }
 
 export async function logout(): Promise<void> {

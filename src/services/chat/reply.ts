@@ -6,6 +6,7 @@ import type {
   OutputBlockStart,
   TextBlockParam,
 } from '../api/types.js'
+import type { FilePayload } from './filePayload.js'
 import type {
   AssistantMessage,
   FileAttachment,
@@ -15,21 +16,25 @@ import type {
   UserMessage,
 } from './types.js'
 
-/**
- * 文件按 Files API 的 file_id（附件的 serverId）引用：图片用 image 块，其余用 document 块。
- * 发送前 streamReply 会先补齐 serverId；仍为 null 的是本地没有原件的附件，不进入请求。
- */
-const toFileBlocks = (files: FileAttachment[]): FileBlockParam[] =>
-  files.flatMap(({ serverId, isImage }) =>
-    serverId
-      ? [
-          {
-            type: isImage ? 'image' : 'document',
-            source: { type: 'file', file_id: serverId },
-          },
-        ]
-      : []
-  )
+const fileBlocks = (files: FileAttachment[], payloads?: ReadonlyMap<string, FilePayload>) => {
+  const blocks: FileBlockParam[] = []
+  let extra = ''
+  for (const file of files) {
+    const payload = payloads?.get(file.id)
+    if (!payload) {
+      continue
+    }
+    if (payload.type === 'image') {
+      blocks.push({
+        type: 'image',
+        source: { type: 'base64', media_type: payload.mediaType, data: payload.data },
+      })
+      continue
+    }
+    extra += payload.text
+  }
+  return { blocks, extra }
+}
 
 const toReplyBlock = (block: OutputBlockStart, now: number): ReplyBlock | null => {
   switch (block.type) {
@@ -185,8 +190,7 @@ export const canContinueReply = (reply: AssistantMessage): boolean => {
     return false
   }
   return (
-    reply.status === 'stopped' ||
-    (reply.status === 'done' && reply.stopReason === 'max_tokens')
+    reply.status === 'stopped' || (reply.status === 'done' && reply.stopReason === 'max_tokens')
   )
 }
 
@@ -201,14 +205,18 @@ const isUsableReply = (message: Message): message is AssistantMessage =>
   !message.blocks.some((block) => block.type === 'text' && block.isTemplate) &&
   getReplyText(message) !== ''
 
-/** 有文件时用内容块数组：先文件后文本，文件按 Files API 的 file_id 引用 */
-const toUserParam = ({ content, files }: UserMessage): MessageParam => {
-  const blocks = toFileBlocks(files)
+/** 有文件时用内容块数组：图片走 base64，文本附件拼进正文。 */
+const toUserParam = (
+  { content, files }: UserMessage,
+  payloads?: ReadonlyMap<string, FilePayload>
+): MessageParam => {
+  const { blocks, extra } = fileBlocks(files, payloads)
+  const text = `${content}${extra}`
   return blocks.length === 0
-    ? { role: 'user', content }
+    ? { role: 'user', content: text }
     : {
         role: 'user',
-        content: [...blocks, ...(content ? [{ type: 'text' as const, text: content }] : [])],
+        content: [...blocks, ...(text ? [{ type: 'text' as const, text }] : [])],
       }
 }
 
@@ -305,7 +313,8 @@ export const toRequestMessages = (
   question: UserMessage,
   prefix?: AssistantMessage,
   thinking = prefix?.thinking ?? false,
-  latestReminder?: string
+  latestReminder?: string,
+  files?: ReadonlyMap<string, FilePayload>
 ): MessageParam[] => {
   const messages: MessageParam[] = []
   let previousReminder: string | undefined
@@ -317,15 +326,16 @@ export const toRequestMessages = (
     }
   }
   for (const [user, reply] of getContextRounds(history)) {
-    // 历史提问没有文字、附件也都没有 serverId 时，提问为空，连同回答一起省略。
-    if (!user.content && toFileBlocks(user.files).length === 0) {
+    const attached = fileBlocks(user.files, files)
+    // 历史提问没有文字、本地也没有附件内容时，提问为空，连同回答一起省略。
+    if (!user.content && attached.blocks.length === 0 && !attached.extra) {
       continue
     }
     appendReminder(reply.latestReminder)
-    messages.push(toUserParam(user), toAssistantParam(reply))
+    messages.push(toUserParam(user, files), toAssistantParam(reply))
   }
   appendReminder(latestReminder)
-  messages.push(toUserParam(question))
+  messages.push(toUserParam(question, files))
   if (prefix?.prefix) {
     const assistant = toAssistantParam(prefix, true, thinking)
     // 没有非空白正文或有效思考时直接重发原问题，避免服务端拒绝空 Prefill。

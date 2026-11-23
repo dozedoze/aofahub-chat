@@ -61,7 +61,7 @@ const initialLocale = (): Locale => {
   if (saved === 'zh-CN' || saved === 'en-US') {
     return saved
   }
-  return isChineseBrowser() ? 'zh-CN' : 'en-US'
+  return 'zh-CN'
 }
 
 const initialLocation = (): UserLocation | null => {

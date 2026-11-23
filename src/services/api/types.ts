@@ -126,12 +126,11 @@ export type ToolUseBlock = { type: 'tool_use'; id: string; name: string; input: 
 export type TextBlockParam = { type: 'text'; text: string }
 
 /**
- * 文件块：引用经 Files API 上传的文件，图片用 image、其余用 document；
- * 图片请求需带 anthropic-beta: files-api-2025-04-14；扩展模式不支持 document，返回 400。
+ * 文件块：图片用 image。优先走 base64，兼容旧的 Files API file_id。
  */
 export type FileBlockParam = {
   type: 'image' | 'document'
-  source: { type: 'file'; file_id: string }
+  source: { type: 'file'; file_id: string } | { type: 'base64'; media_type: string; data: string }
 }
 
 /** 接口接受的调用块；历史只回传 kind 为 read_link 的调用 */

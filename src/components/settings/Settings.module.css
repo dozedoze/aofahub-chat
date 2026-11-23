@@ -429,6 +429,85 @@
   width: 100%;
 }
 
+.usageDialog {
+  width: 420px;
+}
+
+.usageHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.usagePercent {
+  color: var(--dsw-alias-label-primary);
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 600;
+}
+
+.usageMeta {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.usageBar {
+  height: 8px;
+  margin: 4px 0 16px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.usageFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--dsw-alias-brand-primary);
+}
+
+.usageFillWarn {
+  background: var(--dsw-static-amber-500);
+}
+
+.usageFillOver {
+  background: var(--dsw-alias-state-error-primary);
+}
+
+.usageRecentLabel {
+  margin-bottom: 8px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.usageRecent {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.usageRecent li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 18px;
+  box-shadow: inset 0 1px 0 0 var(--dsw-alias-border-l2-darkmode-thin);
+}
+
+.usageRecent li:first-child {
+  box-shadow: none;
+}
+
+.usageEmpty {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+}
+
 @media not all and (min-width: 768px) {
   .deleteActions > button {
     min-height: 44px;

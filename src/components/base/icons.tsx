@@ -510,6 +510,19 @@ export const IconPhotoErrorFill20 = () => (
   </svg>
 )
 
+export const IconUsageOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M8 1.25a6.75 6.75 0 1 1 0 13.5A6.75 6.75 0 0 1 8 1.25Zm0 1.5a5.25 5.25 0 1 0 0 10.5A5.25 5.25 0 0 0 8 2.75Z"
+      fill="currentColor"
+    />
+    <path
+      d="M8.75 4.5a.75.75 0 0 0-1.5 0v3.2L5.53 9.22a.75.75 0 1 0 .94 1.17l2.05-1.65A.75.75 0 0 0 8.75 8.2V4.5Z"
+      fill="currentColor"
+    />
+  </svg>
+)
+
 /** 错误提示图标：圆环 + 感叹号，颜色跟随 currentColor */
 export const IconToastError16 = () => (
   <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

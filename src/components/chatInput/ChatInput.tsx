@@ -79,11 +79,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   }, [t])
 
   const acceptFiles = (files: File[]) => {
-    if (
-      files.length === 0 ||
-      !isDeepseekModel(useSettings.getState().model) ||
-      useChatStore.getState().importingHistory
-    ) {
+    if (files.length === 0 || useChatStore.getState().importingHistory) {
       return
     }
     const error = addDraftFiles(sessionId, files)
@@ -256,16 +252,14 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
               }}
             />
           ) : null}
-          {deepseek ? (
-            <IconButton
-              size="m"
-              tone="primary"
-              icon={<IconPaperclipOutline16 />}
-              tooltip={t('uploadFile')}
-              disabled={importingHistory}
-              onClick={() => fileInputRef.current?.click()}
-            />
-          ) : null}
+          <IconButton
+            size="m"
+            tone="primary"
+            icon={<IconPaperclipOutline16 />}
+            tooltip={t('uploadFile')}
+            disabled={importingHistory}
+            onClick={() => fileInputRef.current?.click()}
+          />
           <input
             ref={fileInputRef}
             type="file"
