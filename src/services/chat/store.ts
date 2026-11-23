@@ -16,6 +16,7 @@ import {
   getDraft,
   prepareDraftMessage,
 } from './drafts.js'
+import { getLatestReplyThinking } from './thinking.js'
 import { createLatestReminder } from './latestReminder.js'
 import {
   applyEvent,
@@ -250,15 +251,15 @@ export const bindChatPersistence = () => {
   }
 }
 
-/** 按当前开关创建回复：深度思考对应 thinking；联网搜索始终声明。 */
-const createReply = (): AssistantMessage => {
+/** 按该对话当前的开关创建回复：深度思考对应 thinking；联网搜索始终声明。 */
+const createReply = (sessionId: string): AssistantMessage => {
   const model = defaultModel()
   return {
     id: createId(),
     role: 'assistant',
     createdAt: Date.now(),
     model,
-    thinking: effectiveThinking(model),
+    thinking: effectiveThinking(model, sessionId, getLatestReplyThinking(getSession(sessionId))),
     search: true,
     prefix: true,
     status: 'pending',
@@ -596,7 +597,7 @@ export const sendMessage = (targetSessionId: string | null) => {
     })),
     createdAt: now,
   }
-  const reply = createReply()
+  const reply = createReply(sessionId)
   updateSession(sessionId, (session) => ({
     ...appendBranch(session, history.at(-1)?.id ?? null, [question, reply]),
     updatedAt: now,
@@ -630,7 +631,7 @@ export const regenerateReply = (sessionId: string, messageId?: string) => {
     return
   }
   const history = path.slice(0, index - 1)
-  const reply = createReply()
+  const reply = createReply(sessionId)
   updateSession(sessionId, (s) => ({
     ...appendBranch(s, question.id, [reply]),
     updatedAt: Date.now(),
@@ -662,7 +663,7 @@ export const editMessage = (sessionId: string, messageId: string, content: strin
     files: previous.files,
     createdAt: Date.now(),
   }
-  const reply = createReply()
+  const reply = createReply(sessionId)
   updateSession(sessionId, (s) => ({
     ...appendBranch(s, path[index - 1]?.id ?? null, [question, reply]),
     updatedAt: Date.now(),
@@ -708,7 +709,8 @@ export const continueReply = (sessionId: string, messageId: string) => {
     ...previous,
     // 未记录请求配置的回复，续写时使用默认模型和当前开关。
     model,
-    thinking: previous.thinking ?? effectiveThinking(model),
+    thinking:
+      previous.thinking ?? effectiveThinking(model, sessionId, getLatestReplyThinking(session)),
     search: true,
     status: 'pending',
     stopReason: undefined,

@@ -20,8 +20,10 @@ type Settings = {
   contextWindows: Record<string, number>
   /** 网关 /models 返回的深度思考能力；老网关没有这个字段，按可开关处理 */
   thinkingModes: Record<string, ThinkingMode>
-  /** 用户显式选择；null 表示没选过，按模型默认：DeepSeek 关，其余开 */
+  /** 新对话的深度思考选择；null 表示没选过，按模型默认：DeepSeek 关，其余开 */
   thinking: boolean | null
+  /** 已有对话里用户点过的开关，只在本次页面内存中；刷新后以该对话最近一次回复为准 */
+  sessionThinking: Record<string, boolean>
   siderCollapsed: boolean
 }
 
@@ -115,6 +117,7 @@ export const useSettings = create<Settings>(() => {
     contextWindows: {},
     thinkingModes: {},
     thinking: initialThinking(),
+    sessionThinking: {},
     siderCollapsed: read(KEYS.siderCollapsed) === 'true',
   }
 })
@@ -157,7 +160,7 @@ export const refreshModels = async () => {
   useSettings.setState({ models, model, contextWindows, thinkingModes })
 }
 
-/** 这个模型的开关有没有意义：只有能控制思考的模型和 auto 才显示 */
+/** 能切换思考的模型：开关可点 */
 export const canToggleThinking = (mode: ThinkingMode | undefined) =>
   mode === undefined || mode === 'toggle' || mode === 'effort' || mode === 'auto'
 
@@ -165,11 +168,50 @@ export const canToggleThinking = (mode: ThinkingMode | undefined) =>
 export const thinkingSelected = (model: string, thinking: boolean | null) =>
   thinking ?? !isDeepseekModel(model)
 
+/**
+ * 某个对话的深度思考选择：本次点过的 > 该对话最近一次回复 > 新对话的选择。
+ * sessionId 为 null 表示尚未创建的新对话。
+ */
+export const thinkingChoice = (
+  state: Pick<Settings, 'thinking' | 'sessionThinking'>,
+  sessionId: string | null,
+  latestReply?: boolean
+): boolean | null => {
+  if (sessionId === null) {
+    return state.thinking
+  }
+  return state.sessionThinking[sessionId] ?? latestReply ?? state.thinking
+}
+
+/**
+ * 开关显示的状态。不能切换的模型显示实际情况：永远在思考的为开，不是推理模型为关，
+ * 认不出的显示该对话最近一次回复有没有思考。
+ */
+export const thinkingDisplay = (
+  state: Settings,
+  sessionId: string | null,
+  latestReply?: boolean
+): boolean => {
+  switch (state.thinkingModes[state.model]) {
+    case 'always':
+      return true
+    case 'none':
+      return false
+    case 'unknown':
+      return latestReply ?? false
+    default:
+      return thinkingSelected(state.model, thinkingChoice(state, sessionId, latestReply))
+  }
+}
+
 /** 发请求时的思考状态：永远在思考的按开启记，不是推理模型按关闭记，认不出的交给回复内容决定 */
-export const effectiveThinking = (model: string): boolean | undefined => {
-  const { thinking, thinkingModes } = useSettings.getState()
-  const mode = thinkingModes[model]
-  switch (mode) {
+export const effectiveThinking = (
+  model: string,
+  sessionId: string | null,
+  latestReply?: boolean
+): boolean | undefined => {
+  const state = useSettings.getState()
+  switch (state.thinkingModes[model]) {
     case 'always':
       return true
     case 'none':
@@ -177,13 +219,19 @@ export const effectiveThinking = (model: string): boolean | undefined => {
     case 'unknown':
       return undefined
     default:
-      return thinkingSelected(model, thinking)
+      return thinkingSelected(model, thinkingChoice(state, sessionId, latestReply))
   }
 }
 
-export const setThinking = (thinking: boolean) => {
-  write(KEYS.thinking, String(thinking))
-  useSettings.setState({ thinking })
+export const setThinking = (sessionId: string | null, thinking: boolean) => {
+  if (sessionId === null) {
+    write(KEYS.thinking, String(thinking))
+    useSettings.setState({ thinking })
+    return
+  }
+  useSettings.setState((state) => ({
+    sessionThinking: { ...state.sessionThinking, [sessionId]: thinking },
+  }))
 }
 
 export const setSiderCollapsed = (siderCollapsed: boolean) => {

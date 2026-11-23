@@ -295,6 +295,19 @@
       background-color: var(--dsw-alias-button-ghost-active-hover);
     }
   }
+
+  /* 只展示状态，不可点击 */
+  &.readonly {
+    cursor: default;
+
+    &:hover {
+      background-color: transparent;
+    }
+
+    &.selected:hover {
+      background-color: var(--dsw-alias-button-ghost-active-fill);
+    }
+  }
 }
 
 .right {

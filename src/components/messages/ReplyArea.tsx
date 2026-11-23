@@ -17,6 +17,7 @@ import {
 import type { AssistantMessage } from '../../services/chat/types.js'
 import {
   getAreaTitle,
+  getRunningSeconds,
   isDeepSearchKind,
   isImageSearchKind,
   type FindStep,
@@ -64,7 +65,7 @@ export const ReplyArea = memo(function ReplyArea({
   streaming: boolean
   hasResponse: boolean
 }) {
-  useTranslate()
+  const t = useTranslate()
   const [open, setOpen] = useState(true)
   const titleActive = streaming && !hasResponse
   useTicker(titleActive, 1000)
@@ -73,7 +74,9 @@ export const ReplyArea = memo(function ReplyArea({
   }
   // 未记录请求开关时，按是否有思考内容显示标题。
   const thinking = message.thinking ?? view.steps.some((step) => step.type === 'thinking')
-  const title = thinking ? getAreaTitle(view, streaming, Date.now(), hasResponse) : null
+  const now = Date.now()
+  const title = thinking ? getAreaTitle(view, streaming, now, hasResponse) : null
+  const runningSeconds = titleActive ? getRunningSeconds(view.steps, message.createdAt, now) : null
   const stopped = !streaming && !hasResponse
   return (
     <div className={styles.area}>
@@ -83,6 +86,11 @@ export const ReplyArea = memo(function ReplyArea({
             <IconThinkOutline16 />
           </span>
           <span className={clsx(styles.titleText, titleActive && styles.shimmer)}>{title}</span>
+          {runningSeconds !== null ? (
+            <span className={styles.timer}>
+              {t('messageElapsedSeconds', { count: runningSeconds })}
+            </span>
+          ) : null}
           {open ? <IconChevronDownOutline14 /> : <IconChevronRightOutline14 />}
         </div>
       ) : null}

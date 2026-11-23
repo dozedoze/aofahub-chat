@@ -374,6 +374,14 @@ export const getTotalThinkingSeconds = (steps: Step[], now: number) => {
   return Math.max(1, Math.round(total / 1000))
 }
 
+/** 进行中的思考计时（秒）：已有思考块时累计思考用时，请求刚发出还没有思考块时从发送开始算。 */
+export const getRunningSeconds = (steps: Step[], startedAt: number, now: number) => {
+  const total = steps.some((step) => step.type === 'thinking')
+    ? getTotalThinkingSeconds(steps, now)
+    : null
+  return total ?? Math.max(0, Math.floor((now - startedAt) / 1000))
+}
+
 /** 折叠区标题 */
 export const getAreaTitle = (
   view: ReplyView,

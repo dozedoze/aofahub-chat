@@ -11,9 +11,10 @@ import {
   canToggleThinking,
   setModel,
   setThinking,
-  thinkingSelected,
+  thinkingDisplay,
   useSettings,
 } from '../../services/settings.js'
+import { getLatestReplyThinking } from '../../services/chat/thinking.js'
 import { useIsMobile } from '../../app/viewport.js'
 import { sendMessage, stopReply, useChatStore } from '../../services/chat/store.js'
 import {
@@ -62,7 +63,12 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   const models = useSettings((state) => state.models)
   const thinkingMode = useSettings((state) => state.thinkingModes[state.model])
   const deepseek = isDeepseekModel(model)
-  const thinking = useSettings((state) => thinkingSelected(state.model, state.thinking))
+  const latestReplyThinking = useChatStore((state) =>
+    sessionId === null || !Object.hasOwn(state.sessionCache, sessionId)
+      ? undefined
+      : getLatestReplyThinking(state.sessionCache[sessionId])
+  )
+  const thinking = useSettings((state) => thinkingDisplay(state, sessionId, latestReplyThinking))
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const togglesRef = useRef<HTMLDivElement>(null)
@@ -162,6 +168,45 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
     }
   }
 
+  const thinkingToggle = canToggleThinking(thinkingMode) ? (
+    <Tooltip
+      content={t(thinkingMode === 'auto' ? 'thinkingAutoTooltip' : 'deactivatedThinkTooltip')}
+    >
+      <button
+        type="button"
+        className={clsx(styles.toggle, thinking && styles.selected)}
+        aria-label={t('thinkingSwitch')}
+        aria-pressed={thinking}
+        onClick={() => setThinking(sessionId, !thinking)}
+      >
+        <IconThinkOutline14 />
+        <span className={styles.toggleLabel}>{t('thinkingSwitch')}</span>
+      </button>
+    </Tooltip>
+  ) : (
+    // 不能切换思考的模型：只展示这个对话实际的思考状态
+    <Tooltip
+      content={t(
+        thinkingMode === 'always'
+          ? 'thinkingAlwaysTooltip'
+          : thinkingMode === 'none'
+            ? 'thinkingNoneTooltip'
+            : 'thinkingUnknownTooltip'
+      )}
+    >
+      <button
+        type="button"
+        className={clsx(styles.toggle, styles.readonly, thinking && styles.selected)}
+        aria-label={t('thinkingSwitch')}
+        aria-pressed={thinking}
+        aria-disabled
+      >
+        <IconThinkOutline14 />
+        <span className={styles.toggleLabel}>{t('thinkingSwitch')}</span>
+      </button>
+    </Tooltip>
+  )
+
   return (
     <div
       className={clsx(styles.wrapper, sessionId === null ? styles.home : styles.session)}
@@ -218,24 +263,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
             options={(models.length ? models : ['auto']).map((id) => ({ value: id, label: id }))}
             onChange={setModel}
           />
-          {canToggleThinking(thinkingMode) ? (
-            <Tooltip
-              content={t(
-                thinkingMode === 'auto' ? 'thinkingAutoTooltip' : 'deactivatedThinkTooltip'
-              )}
-            >
-              <button
-                type="button"
-                className={clsx(styles.toggle, thinking && styles.selected)}
-                aria-label={t('thinkingSwitch')}
-                aria-pressed={thinking}
-                onClick={() => setThinking(!thinking)}
-              >
-                <IconThinkOutline14 />
-                <span className={styles.toggleLabel}>{t('thinkingSwitch')}</span>
-              </button>
-            </Tooltip>
-          ) : null}
+          {thinkingToggle}
         </div>
         <div className={styles.right}>
           <ContextMeter sessionId={sessionId} draftText={text} draftAttachments={attachments} />

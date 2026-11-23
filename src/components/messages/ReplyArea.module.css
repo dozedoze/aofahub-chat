@@ -32,6 +32,13 @@
   font: var(--dsw-font-markdown-base);
 }
 
+.timer {
+  margin-right: 6px;
+  color: var(--dsw-alias-label-tertiary);
+  font: var(--dsw-font-markdown-base);
+  font-variant-numeric: tabular-nums;
+}
+
 .shimmer {
   color: transparent;
   background: linear-gradient(

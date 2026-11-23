@@ -4,6 +4,7 @@ declare const styles: {
   readonly titleIcon: string
   readonly stoppedIcon: string
   readonly titleText: string
+  readonly timer: string
   readonly shimmer: string
   readonly withLine: string
   readonly content: string
