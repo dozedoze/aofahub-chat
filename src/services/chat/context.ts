@@ -162,6 +162,15 @@ export type ContextUsage = {
   segments: ContextSegment[]
 }
 
+type ReportedUsage = NonNullable<AssistantMessage['usage']>
+
+const inputTokens = (usage: ReportedUsage) =>
+  usage.input_tokens + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0)
+
+/** 输入量为 0 说明上游没给用量（只剩一个输出数），不能当作回报，否则会把整段上下文算成几十个 token。 */
+const hasReportedUsage = (message: AssistantMessage) =>
+  message.usage !== undefined && inputTokens(message.usage) > 0
+
 /**
  * 当前上下文占用：取当前分支上最近一次带用量的回复，输入（含缓存读写）加输出即下一轮请求会带上的历史规模；
  * 没有回报时（新会话、导入的历史）按内容估算。分项由本地内容估算，并校准到回报总量：
@@ -185,7 +194,7 @@ export const getContextUsage = (
     }
     lastModel ??= message.model
     reminder ||= message.latestReminder ?? ''
-    if (message.usage && usageIndex < 0) {
+    if (hasReportedUsage(message) && usageIndex < 0) {
       usageIndex = index
       lastModel = message.model ?? lastModel
     }
@@ -193,12 +202,7 @@ export const getContextUsage = (
 
   const usageReply = usageIndex >= 0 ? (visible[usageIndex] as AssistantMessage) : null
   const usage = usageReply?.usage
-  const reported = usage
-    ? usage.input_tokens +
-      (usage.cache_creation_input_tokens ?? 0) +
-      (usage.cache_read_input_tokens ?? 0) +
-      usage.output_tokens
-    : null
+  const reported = usage ? inputTokens(usage) + usage.output_tokens : null
 
   // 回报覆盖到 usageReply 为止；之后的轮次（如回复失败没有用量）不在回报里。
   const covered = usageReply ? visible.slice(0, usageIndex + 1) : visible

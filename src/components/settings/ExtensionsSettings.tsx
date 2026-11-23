@@ -54,6 +54,7 @@ export const ExtensionsSettings = () => {
   const t = useTranslate()
   const status = useExtensions((state) => state.status)
   const config = useExtensions((state) => state.config)
+  const [tab, setTab] = useState<'mcp' | 'skill'>('mcp')
 
   useEffect(() => {
     void loadExtensions().catch(() => {})
@@ -82,12 +83,36 @@ export const ExtensionsSettings = () => {
 
   return (
     <>
-      {config.mcpEnabled ? null : <div className={styles.notice}>{t('extMcpDisabled')}</div>}
-      <McpSection config={config} />
-      <SkillsSection config={config} />
+      <div role="tablist" className={styles.tabs}>
+        {tabs.map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            role="tab"
+            aria-selected={tab === item.value}
+            className={clsx(styles.tab, tab === item.value && styles.tabActive)}
+            onClick={() => setTab(item.value)}
+          >
+            {t(item.label)}
+          </button>
+        ))}
+      </div>
+      {tab === 'mcp' ? (
+        <>
+          {config.mcpEnabled ? null : <div className={styles.notice}>{t('extMcpDisabled')}</div>}
+          <McpSection config={config} />
+        </>
+      ) : (
+        <SkillsSection config={config} />
+      )}
     </>
   )
 }
+
+const tabs: { value: 'mcp' | 'skill'; label: TranslationKey }[] = [
+  { value: 'mcp', label: 'extMcpTitle' },
+  { value: 'skill', label: 'extSkillTitle' },
+]
 
 const Section = ({
   title,

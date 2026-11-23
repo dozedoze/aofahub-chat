@@ -9,7 +9,10 @@
   "build": {
     "command": "pnpm run build",
   },
+  // 有了 main，Worker 才有运行代码，Dashboard 才能添加 Secrets。
+  "main": "worker/index.ts",
   "assets": {
+    "binding": "ASSETS",
     "directory": "./dist",
     "not_found_handling": "single-page-application",
   },
