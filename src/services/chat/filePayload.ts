@@ -1,4 +1,6 @@
 import { resizeUploadImage } from '../../utils/resizeUploadImage.js'
+import { getFileExt } from '../attachments.js'
+import { extractOfficeText, OFFICE_EXTS } from './officeText.js'
 import type { FileAttachment } from './types.js'
 
 /** 内联进请求的附件：图片走 vision，文本拼进正文，其它文件带上文件名。 */
@@ -62,10 +64,25 @@ export const encodeFilePayload = async (
       data: await blobToBase64(ready),
     }
   }
+  const ext = getFileExt(file.name)
+  if (OFFICE_EXTS.has(ext)) {
+    try {
+      const extracted = await extractOfficeText(ext, blob)
+      signal.throwIfAborted()
+      return { type: 'text', text: `\n\n[${file.name}]\n${clipText(extracted)}` }
+    } catch {
+      // 文件损坏或不是真正的 OOXML：继续按普通文件处理
+      signal.throwIfAborted()
+    }
+  }
   const text = await readUtf8IfText(blob)
   signal.throwIfAborted()
   if (text !== null) {
     return { type: 'text', text: `\n\n[${file.name}]\n${clipText(text)}` }
   }
-  return { type: 'text', text: `\n\n[${file.name}]` }
+  // 明确告诉模型内容没有读出来，避免它猜测文件内容
+  return {
+    type: 'text',
+    text: `\n\n[${file.name}]\n(Binary file: its content could not be read, only the file name is available.)`,
+  }
 }

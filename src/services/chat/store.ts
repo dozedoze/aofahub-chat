@@ -21,9 +21,11 @@ import {
   applyEvent,
   canContinueReply,
   getContextRounds,
+  getReplyText,
   settleReply,
   toRequestMessages,
 } from './reply.js'
+import { fallbackTitle, generateTitle } from './title.js'
 import {
   toSessionSummary,
   type AssistantMessage,
@@ -915,6 +917,8 @@ const waitForRetry = (attempt: number, signal: AbortSignal) =>
  */
 const streamReply = async (sessionId: string, initial: AssistantMessage, request: Request) => {
   const controller = new AbortController()
+  /** 本轮结束时是否仍需要补标题（未被手动重命名） */
+  let wantsTitle = false
   if (!getSession(sessionId)?.title) {
     titleRequests.add(controller)
   }
@@ -1042,6 +1046,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
       }
     }
   } finally {
+    wantsTitle = titleRequests.has(controller)
     titleRequests.delete(controller)
     streamFlushes.delete(sessionId)
     cancelAnimationFrame(frame)
@@ -1052,5 +1057,32 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
       ),
     }))
     persist(sessionId)
+  }
+  const model = initial.model ?? defaultModel()
+  const answer = getReplyText(reply)
+  if (wantsTitle && !isDeepseekModel(model) && reply.status === 'done' && answer) {
+    void autoTitle(sessionId, model, request.question, answer)
+  }
+}
+
+/** 非 deepseek 模型没有服务端标题：让模型概括，失败则取提问开头；已有标题（含手动重命名）不覆盖。 */
+const autoTitle = async (
+  sessionId: string,
+  model: ChatModel,
+  question: UserMessage,
+  answer: string
+) => {
+  const hasTitle = () => Boolean(get().sessions.find((item) => item.id === sessionId)?.title)
+  if (hasTitle()) {
+    return
+  }
+  const title =
+    (await generateTitle(model, question.content, answer, new AbortController().signal)) ??
+    fallbackTitle(
+      question.content,
+      question.files.map((file) => file.name)
+    )
+  if (title && !hasTitle() && !get().importingHistory) {
+    renameSession(sessionId, title)
   }
 }
