@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { TtsVoice } from './api/speech.js'
-import { fetchModels, type ThinkingMode } from './auth.js'
+import { fetchModels, isDeepseekModel, type ThinkingMode } from './auth.js'
 import { normalizeLocation, type UserLocation } from './location.js'
 
 export type Locale = 'zh-CN' | 'en-US'
@@ -20,8 +20,8 @@ type Settings = {
   contextWindows: Record<string, number>
   /** 网关 /models 返回的深度思考能力；老网关没有这个字段，按可开关处理 */
   thinkingModes: Record<string, ThinkingMode>
-  thinking: boolean
-  search: boolean
+  /** 用户显式选择；null 表示没选过，按模型默认：DeepSeek 关，其余开 */
+  thinking: boolean | null
   siderCollapsed: boolean
 }
 
@@ -32,7 +32,6 @@ const KEYS = {
   ttsVoice: 'chat-demo:tts-voice',
   model: 'chat-demo:model',
   thinking: 'chat-demo:thinking',
-  search: 'chat-demo:search',
   siderCollapsed: 'chat-demo:sider-collapsed',
 } as const
 
@@ -42,6 +41,11 @@ const read = (key: string) => {
   } catch {
     return null
   }
+}
+
+const initialThinking = (): boolean | null => {
+  const stored = read(KEYS.thinking)
+  return stored === null ? null : stored === 'true'
 }
 
 const write = (key: string, value: string | null) => {
@@ -110,8 +114,7 @@ export const useSettings = create<Settings>(() => {
     models: ['auto'],
     contextWindows: {},
     thinkingModes: {},
-    thinking: read(KEYS.thinking) === 'true',
-    search: read(KEYS.search) === 'true',
+    thinking: initialThinking(),
     siderCollapsed: read(KEYS.siderCollapsed) === 'true',
   }
 })
@@ -158,6 +161,10 @@ export const refreshModels = async () => {
 export const canToggleThinking = (mode: ThinkingMode | undefined) =>
   mode === undefined || mode === 'toggle' || mode === 'effort' || mode === 'auto'
 
+/** 开关当前该显示的状态：用户选过按用户的，没选过 DeepSeek 关、其余开 */
+export const thinkingSelected = (model: string, thinking: boolean | null) =>
+  thinking ?? !isDeepseekModel(model)
+
 /** 发请求时的思考状态：永远在思考的按开启记，不是推理模型按关闭记，认不出的交给回复内容决定 */
 export const effectiveThinking = (model: string): boolean | undefined => {
   const { thinking, thinkingModes } = useSettings.getState()
@@ -170,18 +177,13 @@ export const effectiveThinking = (model: string): boolean | undefined => {
     case 'unknown':
       return undefined
     default:
-      return thinking
+      return thinkingSelected(model, thinking)
   }
 }
 
 export const setThinking = (thinking: boolean) => {
   write(KEYS.thinking, String(thinking))
   useSettings.setState({ thinking })
-}
-
-export const setSearch = (search: boolean) => {
-  write(KEYS.search, String(search))
-  useSettings.setState({ search })
 }
 
 export const setSiderCollapsed = (siderCollapsed: boolean) => {

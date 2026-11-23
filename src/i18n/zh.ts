@@ -134,8 +134,6 @@ export const zh = {
   deactivatedThinkTooltip: '先思考后回答，解决推理问题',
   thinkingAutoTooltip: '开启后直接用更强的推理模型',
   thinkingSwitch: '深度思考',
-  deactivatedSearchTooltip: '按需搜索网页',
-  search: '智能搜索',
   uploadFile: '上传文件',
   chatInputStopButtonTooltip: '停止生成',
   uploadMaxMBSize: '单个文件大小超过限制（{size}MB），请调整后重试',

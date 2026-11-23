@@ -47,16 +47,11 @@ const FILE_RETRY_LIMIT = 2
 /** 退避基数，第 n 次重试等待 2^n 倍；连续失败达到上限就放弃，把原始报错展示出来 */
 const FILE_RETRY_BASE_DELAY = 1000
 
-/** 阅读链接始终开启，智能搜索开关控制是否另行声明搜索工具（含边想边搜）。 */
-const serverTools = (search: boolean): CreateMessageRequest['tools'] => {
-  const tools: CreateMessageRequest['tools'] = [
-    { type: 'deepseek_read_url', name: 'deepseek_read_url' },
-  ]
-  if (search) {
-    tools.push({ type: 'deepseek_web_search', name: 'deepseek_web_search' })
-  }
-  return tools
-}
+/** 阅读链接与联网搜索（含边想边搜）始终开启，由模型按需调用。 */
+const serverTools = (): CreateMessageRequest['tools'] => [
+  { type: 'deepseek_read_url', name: 'deepseek_read_url' },
+  { type: 'deepseek_web_search', name: 'deepseek_web_search' },
+]
 
 /** 允许自动补标题的请求；手动重命名后取消本轮标题写入，包含主动清空标题的情况。 */
 const titleRequests = new Set<AbortController>()
@@ -255,9 +250,8 @@ export const bindChatPersistence = () => {
   }
 }
 
-/** 按当前开关创建回复：深度思考对应 thinking，智能搜索控制 deepseek_web_search。 */
+/** 按当前开关创建回复：深度思考对应 thinking；联网搜索始终声明。 */
 const createReply = (): AssistantMessage => {
-  const { search } = useSettings.getState()
   const model = defaultModel()
   return {
     id: createId(),
@@ -265,7 +259,7 @@ const createReply = (): AssistantMessage => {
     createdAt: Date.now(),
     model,
     thinking: effectiveThinking(model),
-    search,
+    search: true,
     prefix: true,
     status: 'pending',
     blocks: [],
@@ -709,14 +703,13 @@ export const continueReply = (sessionId: string, messageId: string) => {
   ) {
     return
   }
-  const { search } = useSettings.getState()
   const model = previous.model ?? defaultModel()
   const reply: AssistantMessage = {
     ...previous,
     // 未记录请求配置的回复，续写时使用默认模型和当前开关。
     model,
     thinking: previous.thinking ?? effectiveThinking(model),
-    search: previous.search ?? search,
+    search: true,
     status: 'pending',
     stopReason: undefined,
     stopDetails: undefined,
@@ -968,7 +961,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
             ...(deepseek
               ? {
                   safety_check: SAFETY_CHECK,
-                  tools: serverTools(initial.search ?? false),
+                  tools: serverTools(),
                   ...(titleRequests.has(controller) ? { title: { enabled: true } } : {}),
                 }
               : {}),

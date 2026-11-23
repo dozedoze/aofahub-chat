@@ -141,8 +141,6 @@ export const en = {
   deactivatedThinkTooltip: 'Think before responding to solve reasoning problems',
   thinkingAutoTooltip: 'On: route straight to a stronger reasoning model',
   thinkingSwitch: 'DeepThink',
-  deactivatedSearchTooltip: 'Search the web when necessary',
-  search: 'Search',
   uploadFile: 'Upload files',
   chatInputStopButtonTooltip: 'Stop',
   uploadMaxMBSize: 'File exceeds the size limit ({size} MB). Please adjust and try again.',
