@@ -1,0 +1,41 @@
+.meter {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 6px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+  user-select: none;
+}
+
+.track {
+  stroke: var(--dsw-alias-border-l2);
+}
+
+.fill {
+  stroke: var(--dsw-alias-brand-primary);
+  transition:
+    stroke-dashoffset 0.3s ease,
+    stroke 0.2s ease;
+}
+
+.warn {
+  color: var(--dsw-static-amber-600);
+
+  .fill {
+    stroke: var(--dsw-static-amber-500);
+  }
+}
+
+.over {
+  color: var(--dsw-alias-state-error-primary);
+
+  .fill {
+    stroke: var(--dsw-alias-state-error-primary);
+  }
+}

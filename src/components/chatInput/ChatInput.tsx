@@ -25,6 +25,7 @@ import { stopReadAloud } from '../../services/speech/readAloud.js'
 import { IconButton } from '../base/IconButton.js'
 import { Select } from '../base/Select.js'
 import { Tooltip } from '../base/Tooltip.js'
+import { ContextMeter } from './ContextMeter.js'
 import { DragMask, useFileDrop } from './DragMask.js'
 import { showToast } from '../base/toastState.js'
 import { ACCEPT, useUploads } from '../../services/attachments.js'
@@ -240,6 +241,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
           ) : null}
         </div>
         <div className={styles.right}>
+          <ContextMeter sessionId={sessionId} />
           {deepseek ? (
             <VoiceButton
               status={voice.status}

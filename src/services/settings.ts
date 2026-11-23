@@ -16,6 +16,8 @@ type Settings = {
   ttsVoice: TtsVoice
   model: string
   models: string[]
+  /** 网关 /models 返回的上下文窗口（token），缺省时按模型名估算 */
+  contextWindows: Record<string, number>
   thinking: boolean
   search: boolean
   siderCollapsed: boolean
@@ -104,6 +106,7 @@ export const useSettings = create<Settings>(() => {
     ttsVoice: initialTtsVoice(),
     model: initialModel(),
     models: ['auto'],
+    contextWindows: {},
     thinking: read(KEYS.thinking) === 'true',
     search: read(KEYS.search) === 'true',
     siderCollapsed: read(KEYS.siderCollapsed) === 'true',
@@ -137,7 +140,7 @@ export const setModel = (model: string) => {
 }
 
 export const refreshModels = async () => {
-  const models = await fetchModels()
+  const { ids: models, contextWindows } = await fetchModels()
   const current = useSettings.getState().model
   const model = models.includes(current)
     ? current
@@ -145,7 +148,7 @@ export const refreshModels = async () => {
       ? 'auto'
       : (models[0] ?? 'auto')
   write(KEYS.model, model)
-  useSettings.setState({ models, model })
+  useSettings.setState({ models, model, contextWindows })
 }
 
 export const setThinking = (thinking: boolean) => {

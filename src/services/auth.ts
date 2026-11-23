@@ -135,14 +135,37 @@ export async function logout(): Promise<void> {
   expireSession()
 }
 
-export async function fetchModels(): Promise<string[]> {
+export type ModelCatalog = { ids: string[]; contextWindows: Record<string, number> }
+
+const readContextWindow = (item: Record<string, unknown>): number | null => {
+  for (const key of ['context_length', 'context_window', 'max_input_tokens', 'max_context_length']) {
+    const value = item[key]
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return Math.floor(value)
+    }
+  }
+  return null
+}
+
+export async function fetchModels(): Promise<ModelCatalog> {
   const response = await fetch(`${API_ORIGIN}/models`, { credentials: 'include' })
   if (!response.ok) {
-    return ['auto']
+    return { ids: ['auto'], contextWindows: {} }
   }
-  const body = (await response.json()) as { data?: { id?: string }[] }
-  const ids = (body.data ?? []).map((item) => item.id).filter((id): id is string => Boolean(id))
-  return ids.length ? ids : ['auto']
+  const body = (await response.json()) as { data?: Record<string, unknown>[] }
+  const ids: string[] = []
+  const contextWindows: Record<string, number> = {}
+  for (const item of body.data ?? []) {
+    if (typeof item.id !== 'string' || !item.id) {
+      continue
+    }
+    ids.push(item.id)
+    const windowSize = readContextWindow(item)
+    if (windowSize) {
+      contextWindows[item.id] = windowSize
+    }
+  }
+  return { ids: ids.length ? ids : ['auto'], contextWindows }
 }
 
 export const isDeepseekModel = (model: string) => /deepseek/i.test(model)

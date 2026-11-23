@@ -189,5 +189,6 @@ export const zh = {
   usageRequests: '{count} 次请求',
   usageLoadFailed: '无法加载使用量，请稍后重试',
   usageRecent: '最近调用',
+  contextUsage: '上下文 {used} / {limit}（{percent}%）',
   usageEmpty: '还没有调用记录',
 } as const

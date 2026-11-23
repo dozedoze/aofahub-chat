@@ -197,5 +197,6 @@ export const en = {
   usageRequests: '{count} requests',
   usageLoadFailed: 'Unable to load usage. Please try again later.',
   usageRecent: 'Recent calls',
+  contextUsage: 'Context {used} / {limit} ({percent}%)',
   usageEmpty: 'No calls yet',
 } satisfies Record<keyof typeof zh, string>
