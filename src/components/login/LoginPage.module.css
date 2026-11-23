@@ -1,0 +1,54 @@
+.wrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--dsw-alias-bg-base);
+}
+
+.card {
+  width: min(360px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px 24px;
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-elevated, var(--dsw-alias-bg-base));
+  box-shadow: 0 12px 40px rgb(0 0 0 / 12%);
+}
+
+.card h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.sub,
+.err {
+  margin: 0;
+  font-size: 13px;
+}
+
+.sub {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.err {
+  color: var(--dsw-alias-label-danger, #c00);
+}
+
+.card label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.card input {
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--dsw-alias-border, #ddd);
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+}

@@ -1,0 +1,11 @@
+{
+  "name": "aofahub-chat",
+  "account_id": "faa48c4594352d235803143377d82d1f",
+  "compatibility_date": "2026-11-19",
+  "workers_dev": true,
+  "routes": [{ "pattern": "chat.aofahub.dev", "custom_domain": true }],
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+  },
+}
