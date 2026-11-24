@@ -120,7 +120,7 @@ export type ServerToolBlock =
 
 /**
  * 网关接手执行的工具调用（联网搜索、读网页、用户的 MCP 与 Skill），只用于界面展示。
- * 网关仅对聊天前端下发，不会回传给模型；调用块在入参完整后下发，结果块在执行完成后下发。
+ * 网关仅对聊天前端下发，不会回传给模型；调用块先于执行下发，入参可能随后经 input_json_delta 补齐，结果块在执行完成后下发。
  */
 export type GatewayToolUseBlock = {
   type: 'gateway_tool_use'
@@ -128,6 +128,8 @@ export type GatewayToolUseBlock = {
   /** web_search、fetch_url、load_skill，或 mcp__{server}__{tool} */
   name: string
   input: Record<string, unknown>
+  /** 入参经 input_json_delta 流式到达时的未完成 JSON，块结束后清除，仅在流式过程中存在 */
+  partialJson?: string
 }
 
 export type GatewayToolResultBlock = {

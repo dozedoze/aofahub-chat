@@ -146,6 +146,19 @@ export const applyEvent = (
         if (block.type === 'thinking' && delta.type === 'signature_delta') {
           return { ...block, signature: (block.signature ?? '') + delta.signature }
         }
+        // 网关接手的工具调用：入参可能在调用块之后才到，累积到能解析为止
+        if (block.type === 'gateway_tool_use' && delta.type === 'input_json_delta') {
+          const partialJson = (block.partialJson ?? '') + delta.partial_json
+          try {
+            const input: unknown = JSON.parse(partialJson)
+            if (input !== null && typeof input === 'object' && !Array.isArray(input)) {
+              return { ...block, input: input as Record<string, unknown>, partialJson }
+            }
+          } catch {
+            // 还没收全，继续累积
+          }
+          return { ...block, partialJson }
+        }
         if (block.type === 'text' && delta.type === 'citations_delta') {
           return { ...block, citations: [...(block.citations ?? []), delta.citation] }
         }
@@ -158,11 +171,14 @@ export const applyEvent = (
         return next
       }
       blockIndexes.delete(event.index)
-      return updateBlock(next, index, (block) =>
-        block.type === 'thinking' && block.startedAt !== undefined && block.endedAt === undefined
+      return updateBlock(next, index, (block) => {
+        if (block.type === 'gateway_tool_use' && block.partialJson !== undefined) {
+          return { type: block.type, id: block.id, name: block.name, input: block.input }
+        }
+        return block.type === 'thinking' && block.startedAt !== undefined && block.endedAt === undefined
           ? { ...block, endedAt: now }
           : block
-      )
+      })
     }
     case 'message_delta':
       return {
