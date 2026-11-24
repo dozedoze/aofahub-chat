@@ -69,6 +69,7 @@ export const zh = {
   replyInsufficientBalance: '账户余额不足，请充值后重试',
   replyRateLimited: '请求过于频繁，请稍后再试',
   completionServerBusyToast: '服务器繁忙，请稍后再试',
+  replyInterrupted: '连接中断，回答没有生成完，请重新生成',
   unknownError: '未知错误',
   replyRefused: '你好，这个问题我暂时无法回答，让我们换个话题再聊聊吧。',
   messageThinkDuration: '已思考（用时 {count} 秒）',

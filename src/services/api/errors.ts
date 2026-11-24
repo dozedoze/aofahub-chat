@@ -48,6 +48,7 @@ export const isRetryableApiError = (error: unknown): boolean => {
   const condition = classifyApiError(error)
   return (
     !(error instanceof ApiError) ||
+    error.kind === 'interrupted' ||
     condition === 'network' ||
     condition === 'rateLimited' ||
     condition === 'serverBusy'

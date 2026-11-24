@@ -45,6 +45,8 @@ const SESSION_CACHE_LIMIT = 5
 const SAFETY_CHECK = { level: 'high' } as const
 /** 服务端判定 file_id 失效后，重新补传并重发的最多次数（不含首次请求） */
 const FILE_RETRY_LIMIT = 2
+/** 流在还没出正文时就断开，自动重发的次数上限；每次重发都会重新计费，所以只试两次 */
+const DROP_RETRY_LIMIT = 2
 /** 退避基数，第 n 次重试等待 2^n 倍；连续失败达到上限就放弃，把原始报错展示出来 */
 const FILE_RETRY_BASE_DELAY = 1000
 
@@ -928,11 +930,14 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
   }
   streamFlushes.set(sessionId, flush)
 
+  let dropRetries = 0
   try {
     for (let attempt = 0; ; attempt += 1) {
       /** 附件补齐前出错属于上传失败，请求还没有发出 */
       let preparing = true
       let receivedContent = false
+      /** 收到过思考以外的内容（正文、工具）；只有思考时断开，丢掉重来用户看不出差别 */
+      let receivedAnswer = false
       try {
         const prepared = await prepareFiles(sessionId, request, controller.signal)
         preparing = false
@@ -974,6 +979,8 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
         const blockIndexes = new Map<number, number>()
         for await (const event of events) {
           receivedContent ||= event.type === 'content_block_start'
+          receivedAnswer ||=
+            event.type === 'content_block_start' && event.content_block.type !== 'thinking'
           if (
             event.type === 'message_delta' &&
             (event.delta.stop_reason === 'end_turn' || event.delta.stop_reason === 'max_tokens') &&
@@ -1020,6 +1027,26 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
             reply = settleReply(reply, 'stopped', Date.now())
             break
           }
+          continue
+        }
+        // 连接断开或流中途中断，且还没出正文：丢掉这次的思考片段，原样重发。
+        if (
+          dropRetries < DROP_RETRY_LIMIT &&
+          !receivedAnswer &&
+          !reply.stopReason &&
+          error instanceof ApiError &&
+          (error.kind === 'interrupted' || error.kind === 'network')
+        ) {
+          await waitForRetry(dropRetries, controller.signal)
+          dropRetries += 1
+          if (controller.signal.aborted) {
+            reply = settleReply(reply, 'stopped', Date.now())
+            break
+          }
+          cancelAnimationFrame(frame)
+          frame = 0
+          reply = initial
+          updateReply(sessionId, reply)
           continue
         }
         if (error instanceof ApiError && error.kind === 'interrupted' && reply.stopReason) {

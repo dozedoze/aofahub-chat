@@ -31,6 +31,10 @@ export const describeReply = (reply: AssistantMessage): Notice | null => {
     if (kind === 'network') {
       return { text: translate('commonNetworkErrorToast') }
     }
+    // 流中途断开且服务端没给原因：不显示提示的话界面只剩一个「已停止」，看不出出了什么事。
+    if (kind === 'interrupted' && !message) {
+      return { text: translate('replyInterrupted') }
+    }
     switch (classifyStatus(status)) {
       case 'unauthorized':
         return { text: translate('replyInvalidApiKey'), action: 'apiKey' }

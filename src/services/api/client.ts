@@ -118,29 +118,42 @@ export async function* streamMessage(
   if (!response.body || !contentType.includes('text/event-stream')) {
     throw await readErrorResponse(response, 'protocol', '')
   }
-  for await (const { event: eventName, data } of readServerSentEvents(response.body, signal)) {
-    let payload: unknown
-    try {
-      payload = JSON.parse(data)
-    } catch {
-      if (eventName !== 'error') {
+  try {
+    for await (const { event: eventName, data } of readServerSentEvents(response.body, signal)) {
+      let payload: unknown
+      try {
+        payload = JSON.parse(data)
+      } catch {
+        if (eventName !== 'error') {
+          continue
+        }
+      }
+      if (isErrorBody(payload)) {
+        // 网关在上游中途断流时发 overloaded_error：和连接被掐断同样处理，可自动重试，文案用本地化的。
+        if (payload.error.type === 'overloaded_error') {
+          throw new ApiError('interrupted', '')
+        }
+        throw new ApiError('stream', payload.error.message)
+      }
+      if (eventName === 'error') {
+        throw new ApiError('stream', data)
+      }
+      const event = readMessageEvent(payload)
+      if (!event) {
         continue
       }
+      yield event
+      if (event.type === 'message_stop') {
+        return
+      }
     }
-    if (isErrorBody(payload)) {
-      throw new ApiError('stream', payload.error.message)
+  } catch (error) {
+    // 读取响应体时连接被掐断（浏览器抛 TypeError: network error 等）：归为中断，
+    // 否则会被当成协议错误，用户只看到一句英文的 "network error"。
+    if (signal.aborted || error instanceof ApiError) {
+      throw error
     }
-    if (eventName === 'error') {
-      throw new ApiError('stream', data)
-    }
-    const event = readMessageEvent(payload)
-    if (!event) {
-      continue
-    }
-    yield event
-    if (event.type === 'message_stop') {
-      return
-    }
+    throw new ApiError('interrupted', '')
   }
   // 服务端没有提供错误内容时保持为空，不推测断流原因。
   throw new ApiError('interrupted', '')
