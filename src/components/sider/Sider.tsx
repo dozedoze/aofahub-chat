@@ -61,13 +61,25 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
     <div className={clsx(styles.sider, mobile && styles.mobile)}>
       <div className={styles.top}>
         <div className={styles.appName}>{t('appName')}</div>
-        <IconButton
-          size="m"
-          icon={<IconPanelLeftOutline16 />}
-          tooltip={t('collapseSiderbarButton')}
-          tooltipPlacement="bottom"
-          onClick={() => (mobile ? closeMobileSider() : setSiderCollapsed(true))}
-        />
+        <div className={styles.topActions}>
+          <IconButton
+            size="m"
+            icon={<IconSearchOutline16 />}
+            tooltip={t('searchChats')}
+            tooltipPlacement="bottom"
+            onClick={() => {
+              openSessionSearch()
+              closeMobileSider()
+            }}
+          />
+          <IconButton
+            size="m"
+            icon={<IconPanelLeftOutline16 />}
+            tooltip={t('collapseSiderbarButton')}
+            tooltipPlacement="bottom"
+            onClick={() => (mobile ? closeMobileSider() : setSiderCollapsed(true))}
+          />
+        </div>
       </div>
       <button
         type="button"
@@ -81,12 +93,6 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           <NewChatIcon />
         </span>
         {t('newChat')}
-      </button>
-      <button type="button" className={styles.newChat} onClick={openSessionSearch}>
-        <span className={styles.newChatIcon}>
-          <IconSearchOutline16 />
-        </span>
-        {t('searchChats')}
       </button>
       <div className={styles.listWrap}>
         <div className={styles.list}>

@@ -286,7 +286,7 @@ export const en = {
     '{count} other files in the archive were ignored. Skills only use SKILL.md',
   extSkillImportFailed: 'No valid SKILL.md found',
   toolCallRunning: 'Calling {name}',
-  toolCallRunningShort: 'Calling',
+  toolCallsSummary: 'Called {count} tools',  toolCallRunningShort: 'Calling',
   toolCallDone: 'Called',
   toolCallFailed: 'Call failed',
   toolCallStopped: 'Call stopped',

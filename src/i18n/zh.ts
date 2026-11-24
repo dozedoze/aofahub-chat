@@ -271,7 +271,7 @@ export const zh = {
   extSkillImportIgnored: '压缩包里的其他 {count} 个文件已忽略，Skill 只使用 SKILL.md',
   extSkillImportFailed: '没有找到有效的 SKILL.md',
   toolCallRunning: '正在调用 {name}',
-  toolCallRunningShort: '正在调用',
+  toolCallsSummary: '已调用 {count} 个工具',  toolCallRunningShort: '正在调用',
   toolCallDone: '已调用',
   toolCallFailed: '调用失败',
   toolCallStopped: '调用已中止',

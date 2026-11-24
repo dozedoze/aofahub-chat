@@ -81,7 +81,16 @@ export const ReplyArea = memo(function ReplyArea({
   // 未记录请求开关时，按是否有思考内容显示标题。
   const thinking = message.thinking ?? view.steps.some((step) => step.type === 'thinking')
   const now = Date.now()
-  const title = thinking ? getAreaTitle(view, streaming, now, hasResponse) : null
+  const toolCount = view.steps.filter((step) => step.type === 'tool').length
+  const baseTitle = thinking ? getAreaTitle(view, streaming, now, hasResponse) : null
+  // 没开深度思考时，网关工具调用也要有标题，说明正在做什么；结束后给出调用次数。
+  const title =
+    baseTitle ??
+    (toolCount === 0
+      ? null
+      : titleActive || (streaming && !hasResponse)
+        ? getAreaTitle(view, streaming, now, hasResponse)
+        : t('toolCallsSummary', { count: toolCount }))
   const runningSeconds = titleActive ? getRunningSeconds(view.steps, message.createdAt, now) : null
   const stopped = !streaming && !hasResponse
   return (
