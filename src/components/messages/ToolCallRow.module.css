@@ -113,6 +113,13 @@
   min-width: 0;
 }
 
+/* 组内两次调用之间的思考文字：小一号、弱化，和调用行区分开 */
+.thought {
+  margin: 2px 0;
+  color: var(--dsw-alias-label-tertiary);
+  font: var(--dsw-font-xs-13);
+}
+
 .itemHead {
   min-height: 24px;
 }

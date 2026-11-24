@@ -28,6 +28,7 @@ import {
   type SearchStep,
   type Source,
   type Step,
+  type ThinkingStep,
   type ToolStep,
 } from '../../services/chat/view.js'
 import { Tooltip } from '../base/Tooltip.js'
@@ -118,9 +119,18 @@ export const ReplyArea = memo(function ReplyArea({
           {items.map((item, index) =>
             item.type === 'tools' ? (
               <ToolCallGroup
-                key={`tools-${item.steps[0].id}`}
-                steps={item.steps}
+                key={`tools-${(item.entries[0] as ToolStep).id}`}
+                entries={item.entries}
                 interrupted={!streaming && message.status === 'stopped'}
+                renderThinking={(step) => (
+                  <StepItem
+                    step={step}
+                    message={message}
+                    sources={view.sources}
+                    streaming={streaming}
+                    isLast={false}
+                  />
+                )}
               />
             ) : (
               <StepItem
@@ -139,25 +149,45 @@ export const ReplyArea = memo(function ReplyArea({
   )
 })
 
-type RenderItem = Exclude<Step, ToolStep> | { type: 'tools'; steps: ToolStep[] }
+type RenderItem =
+  | Exclude<Step, ToolStep>
+  | { type: 'tools'; entries: (ToolStep | ThinkingStep)[] }
 
-/** 相邻的同名工具调用合并成一组，避免一次搜 4 个关键词刷出 4 行。 */
+/**
+ * 同名工具调用合并成一组，避免模型边想边搜时刷出一长串。
+ * 调用之间夹着的思考文字收进同一组里，展开后按顺序还是「想 → 搜 → 想 → 搜」，收起时只有一行总览。
+ */
 const groupSteps = (steps: Step[]): RenderItem[] => {
   const items: RenderItem[] = []
-  for (const step of steps) {
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i]
     if (step.type !== 'tool') {
       items.push(step)
       continue
     }
     const last = items.at(-1)
-    if (last?.type === 'tools' && last.steps[0].name === step.name) {
-      last.steps.push(step)
-    } else {
-      items.push({ type: 'tools', steps: [step] })
+    if (last?.type === 'tools' && toolName(last.entries) === step.name) {
+      last.entries.push(step)
+      continue
     }
+    // 上一组同名调用后面只隔着思考块时，把这些思考块并进去。
+    let start = items.length
+    while (start > 0 && items[start - 1].type === 'thinking') {
+      start--
+    }
+    const before = items[start - 1]
+    if (start < items.length && before?.type === 'tools' && toolName(before.entries) === step.name) {
+      const between = items.splice(start) as ThinkingStep[]
+      before.entries.push(...between, step)
+      continue
+    }
+    items.push({ type: 'tools', entries: [step] })
   }
   return items
 }
+
+const toolName = (entries: (ToolStep | ThinkingStep)[]) =>
+  entries.find((entry): entry is ToolStep => entry.type === 'tool')?.name
 
 const stepKey = (step: Exclude<Step, ToolStep>, index: number) =>
   step.type === 'thinking' || step.type === 'text' || step.type === 'search'

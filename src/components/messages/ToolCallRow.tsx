@@ -1,7 +1,7 @@
 import clsx from 'clsx'
-import { memo, useState } from 'react'
+import { memo, useState, type ReactNode } from 'react'
 import { useTranslate, type TranslationKey } from '../../i18n/index.js'
-import { getSiteName, type ToolStep } from '../../services/chat/view.js'
+import { getSiteName, type ThinkingStep, type ToolStep } from '../../services/chat/view.js'
 import {
   IconBrowseOutline16,
   IconChevronDownOutline14,
@@ -127,15 +127,19 @@ const CallItem = ({ step, interrupted }: { step: ToolStep; interrupted: boolean 
  * 收起时只有一行「已调用 搜索网页 ×4」，展开后逐次列出摘要与耗时，再点开看返回内容。
  */
 export const ToolCallGroup = memo(function ToolCallGroup({
-  steps,
+  entries,
   interrupted,
+  renderThinking,
 }: {
-  steps: ToolStep[]
+  /** 同名调用，以及夹在调用之间的思考块（按出现顺序） */
+  entries: (ToolStep | ThinkingStep)[]
   /** 回复被用户停止时，没有拿到结果的调用显示为已中止，而不是失败 */
   interrupted: boolean
+  renderThinking: (step: ThinkingStep) => ReactNode
 }) {
   const t = useTranslate()
   const [open, setOpen] = useState(false)
+  const steps = entries.filter((entry): entry is ToolStep => entry.type === 'tool')
   const first = steps[0]
   const multi = steps.length > 1
   const running = steps.filter((step) => step.status === 'wip')
@@ -190,9 +194,15 @@ export const ToolCallGroup = memo(function ToolCallGroup({
       {open ? (
         multi ? (
           <div className={styles.items}>
-            {steps.map((step) => (
-              <CallItem key={step.id} step={step} interrupted={interrupted} />
-            ))}
+            {entries.map((entry) =>
+              entry.type === 'tool' ? (
+                <CallItem key={entry.id} step={entry} interrupted={interrupted} />
+              ) : (
+                <div key={entry.key} className={styles.thought}>
+                  {renderThinking(entry)}
+                </div>
+              )
+            )}
           </div>
         ) : (
           <CallResult step={first} interrupted={interrupted} />
