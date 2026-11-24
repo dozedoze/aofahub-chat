@@ -122,6 +122,7 @@ export const parseToolName = (name: string): { server: string | null; label: str
 }
 
 const SUMMARY_KEYS = ['query', 'url', 'name', 'q', 'path', 'command', 'text', 'prompt']
+const SUMMARY_SKIP_KEYS = new Set(['action', 'type'])
 const SUMMARY_MAX = 80
 
 const clip = (text: string) => {
@@ -137,13 +138,15 @@ export const summarizeToolInput = (input: Record<string, unknown>): string => {
       return clip(value)
     }
   }
-  for (const value of Object.values(input)) {
+  // action 等分派字段不说明调用内容（否则会显示成「search」）。
+  const entries = Object.entries(input).filter(([key]) => !SUMMARY_SKIP_KEYS.has(key))
+  for (const [, value] of entries) {
     if (typeof value === 'string' && value.trim()) {
       return clip(value)
     }
   }
-  const keys = Object.keys(input)
-  return keys.length === 0 ? '' : clip(JSON.stringify(input))
+  const rest = entries.filter(([, value]) => value !== '' && value !== null && value !== undefined)
+  return rest.length === 0 ? '' : clip(JSON.stringify(Object.fromEntries(rest)))
 }
 
 const getStatus = (
@@ -456,14 +459,6 @@ export const getTotalThinkingSeconds = (steps: Step[], now: number) => {
     }
   }
   return Math.max(1, Math.round(total / 1000))
-}
-
-/** 进行中的思考计时（秒）：已有思考块时累计思考用时，请求刚发出还没有思考块时从发送开始算。 */
-export const getRunningSeconds = (steps: Step[], startedAt: number, now: number) => {
-  const total = steps.some((step) => step.type === 'thinking')
-    ? getTotalThinkingSeconds(steps, now)
-    : null
-  return total ?? Math.max(0, Math.floor((now - startedAt) / 1000))
 }
 
 /** 折叠区标题 */

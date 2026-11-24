@@ -106,7 +106,8 @@ const initialTtsVoice = (): TtsVoice => (read(KEYS.ttsVoice) === 'tide' ? 'tide'
 
 const initialThinkingView = (): ThinkingView => {
   const saved = read(KEYS.thinkingView)
-  return saved === 'auto' || saved === 'collapsed' ? saved : 'expanded'
+  // 默认回答开始后自动收起；用户显式选过的以保存值为准。
+  return saved === 'expanded' || saved === 'collapsed' ? saved : 'auto'
 }
 
 const initialModel = (): string => read(KEYS.model) || 'auto'

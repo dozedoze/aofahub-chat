@@ -18,7 +18,6 @@ import type { AssistantMessage } from '../../services/chat/types.js'
 import { useSettings } from '../../services/settings.js'
 import {
   getAreaTitle,
-  getRunningSeconds,
   isDeepSearchKind,
   isImageSearchKind,
   type FindStep,
@@ -29,10 +28,11 @@ import {
   type SearchStep,
   type Source,
   type Step,
+  type ToolStep,
 } from '../../services/chat/view.js'
 import { Tooltip } from '../base/Tooltip.js'
 import { Markdown } from '../markdown/Markdown.js'
-import { ToolCallRow } from './ToolCallRow.js'
+import { ToolCallGroup } from './ToolCallRow.js'
 import { SiteThumbnails } from '../search/SiteLogo.js'
 import { toggleSearchPanel, useSearchPanel } from '../search/searchPanelState.js'
 import styles from './ReplyArea.module.css'
@@ -91,8 +91,12 @@ export const ReplyArea = memo(function ReplyArea({
       : titleActive || (streaming && !hasResponse)
         ? getAreaTitle(view, streaming, now, hasResponse)
         : t('toolCallsSummary', { count: toolCount }))
-  const runningSeconds = titleActive ? getRunningSeconds(view.steps, message.createdAt, now) : null
+  // 进行中计时按发出请求起的总耗时算：工具执行、等待下一轮响应期间也要继续走，不能只累计思考块。
+  const runningSeconds = titleActive
+    ? Math.max(0, Math.floor((now - message.createdAt) / 1000))
+    : null
   const stopped = !streaming && !hasResponse
+  const items = groupSteps(view.steps)
   return (
     <div className={styles.area}>
       {title ? (
@@ -111,28 +115,54 @@ export const ReplyArea = memo(function ReplyArea({
       ) : null}
       {open || !title ? (
         <div className={styles.steps}>
-          {view.steps.map((step, index) => (
-            <StepItem
-              key={stepKey(step, index)}
-              step={step}
-              message={message}
-              sources={view.sources}
-              streaming={streaming}
-              isLast={index === view.steps.length - 1}
-            />
-          ))}
+          {items.map((item, index) =>
+            item.type === 'tools' ? (
+              <ToolCallGroup
+                key={`tools-${item.steps[0].id}`}
+                steps={item.steps}
+                interrupted={!streaming && message.status === 'stopped'}
+              />
+            ) : (
+              <StepItem
+                key={stepKey(item, index)}
+                step={item}
+                message={message}
+                sources={view.sources}
+                streaming={streaming}
+                isLast={index === items.length - 1}
+              />
+            )
+          )}
         </div>
       ) : null}
     </div>
   )
 })
 
-const stepKey = (step: Step, index: number) =>
+type RenderItem = Exclude<Step, ToolStep> | { type: 'tools'; steps: ToolStep[] }
+
+/** 相邻的同名工具调用合并成一组，避免一次搜 4 个关键词刷出 4 行。 */
+const groupSteps = (steps: Step[]): RenderItem[] => {
+  const items: RenderItem[] = []
+  for (const step of steps) {
+    if (step.type !== 'tool') {
+      items.push(step)
+      continue
+    }
+    const last = items.at(-1)
+    if (last?.type === 'tools' && last.steps[0].name === step.name) {
+      last.steps.push(step)
+    } else {
+      items.push({ type: 'tools', steps: [step] })
+    }
+  }
+  return items
+}
+
+const stepKey = (step: Exclude<Step, ToolStep>, index: number) =>
   step.type === 'thinking' || step.type === 'text' || step.type === 'search'
     ? step.key
-    : step.type === 'tool'
-      ? `tool-${step.id}`
-      : `${step.type}-${index}`
+    : `${step.type}-${index}`
 
 const StepItem = ({
   step,
@@ -141,7 +171,7 @@ const StepItem = ({
   streaming,
   isLast,
 }: {
-  step: Step
+  step: Exclude<Step, ToolStep>
   message: AssistantMessage
   sources: Source[]
   streaming: boolean
@@ -153,7 +183,7 @@ const StepItem = ({
       const thinking =
         streaming && lastBlock?.startedAt !== undefined && lastBlock.endedAt === undefined
       return (
-        <ContentItem isLast={isLast} active={thinking}>
+        <ContentItem active={thinking}>
           <Markdown
             content={step.blocks.map((block) => block.thinking).join('')}
             loading={thinking}
@@ -165,7 +195,7 @@ const StepItem = ({
     }
     case 'text':
       return (
-        <ContentItem isLast={isLast} active={false}>
+        <ContentItem active={false}>
           <Markdown
             content={step.markdown}
             loading={streaming && isLast}
@@ -176,42 +206,21 @@ const StepItem = ({
         </ContentItem>
       )
     case 'search':
-      return <SearchRow step={step} message={message} streaming={streaming} isLast={isLast} />
+      return <SearchRow step={step} message={message} streaming={streaming} />
     case 'open':
-      return <OpenRow step={step} sources={sources} isLast={isLast} />
+      return <OpenRow step={step} sources={sources} />
     case 'find':
-      return <FindRow step={step} isLast={isLast} />
+      return <FindRow step={step} />
     case 'read_link':
-      return <ReadLinkRow step={step} isLast={isLast} />
-    case 'tool':
-      return (
-        <ToolCallRow
-          step={step}
-          interrupted={!streaming && message.status === 'stopped'}
-          isLast={isLast}
-        />
-      )
+      return <ReadLinkRow step={step} />
     default:
       return null
   }
 }
 
 /** 思考或过程性文字：左侧圆点 + 竖线，小号 markdown */
-const ContentItem = ({
-  children,
-  active,
-  isLast,
-}: {
-  children: ReactNode
-  active: boolean
-  isLast: boolean
-}) => (
-  <div className={clsx(styles.content, 'ds-think-content', isLast && styles.lastItem)}>
-    <span className={styles.dot}>
-      <span className={clsx(styles.dotInner, !active && styles.inactive)} />
-    </span>
-    {children}
-  </div>
+const ContentItem = ({ children, active }: { children: ReactNode; active: boolean }) => (
+  <div className={clsx(styles.content, 'ds-think-content', active && styles.live)}>{children}</div>
 )
 
 /** 搜索：普通搜索为「已阅读 N 个网页」，边想边搜为「搜索到 N 个网页」，点击打开搜索结果 */
@@ -219,12 +228,10 @@ const SearchRow = ({
   step,
   message,
   streaming,
-  isLast,
 }: {
   step: SearchStep
   message: AssistantMessage
   streaming: boolean
-  isLast: boolean
 }) => {
   const t = useTranslate()
   const entry = useSearchPanel((state) => state.entry)
@@ -279,7 +286,6 @@ const SearchRow = ({
     <div
       className={clsx(
         styles.row,
-        !isLast && styles.withLine,
         clickable && styles.clickable,
         entry === panelEntry && styles.active
       )}
@@ -294,16 +300,8 @@ const SearchRow = ({
 }
 
 /** 工具行外壳：左侧图标，右侧可换行的内容 */
-const ToolRow = ({
-  icon,
-  children,
-  isLast,
-}: {
-  icon: ReactNode
-  children: ReactNode
-  isLast: boolean
-}) => (
-  <div className={clsx(styles.tool, !isLast && styles.withLine)}>
+const ToolRow = ({ icon, children }: { icon: ReactNode; children: ReactNode }) => (
+  <div className={styles.tool}>
     <span className={clsx(styles.rowIcon, styles.toolIcon)}>{icon}</span>
     <div className={styles.toolBody}>{children}</div>
   </div>
@@ -332,25 +330,14 @@ const PageLink = ({ page, failedTip }: { page: PageItem; failedTip?: string }) =
 )
 
 /** 边想边搜打开的网页：「浏览 N 个页面」+ 最多 5 个页面 */
-const OpenRow = ({
-  step,
-  sources,
-  isLast,
-}: {
-  step: OpenStep
-  sources: Source[]
-  isLast: boolean
-}) => {
+const OpenRow = ({ step, sources }: { step: OpenStep; sources: Source[] }) => {
   const t = useTranslate()
   const allFailed = step.pages.every((page) => page.status === 'failed')
   const count = step.pages.length
   const intro = t(count === 1 ? 'toolOpenOneIntro' : 'toolOpensIntro', { count })
   const panelEntry = `open-${step.pages[0]?.id}`
   return (
-    <ToolRow
-      icon={allFailed ? <IconBrowseWarningOutline16 /> : <IconBrowseOutline16 />}
-      isLast={isLast}
-    >
+    <ToolRow icon={allFailed ? <IconBrowseWarningOutline16 /> : <IconBrowseOutline16 />}>
       {allFailed ? (
         t('toolOpenFail')
       ) : (
@@ -379,14 +366,11 @@ const OpenRow = ({
 }
 
 /** 边想边搜的页内查找：「查找关键词」+ 关键词标签 */
-const FindRow = ({ step, isLast }: { step: FindStep; isLast: boolean }) => {
+const FindRow = ({ step }: { step: FindStep }) => {
   const t = useTranslate()
   const allFailed = step.patterns.every((item) => item.status === 'failed')
   return (
-    <ToolRow
-      icon={allFailed ? <IconBrowseWarningOutline16 /> : <IconBrowseOutline16 />}
-      isLast={isLast}
-    >
+    <ToolRow icon={allFailed ? <IconBrowseWarningOutline16 /> : <IconBrowseOutline16 />}>
       {allFailed ? (
         t('toolFindFail')
       ) : (
@@ -414,10 +398,10 @@ const FindRow = ({ step, isLast }: { step: FindStep; isLast: boolean }) => {
 }
 
 /** 阅读用户消息中的链接：视图只保留仍在读取的链接。 */
-const ReadLinkRow = ({ step, isLast }: { step: ReadLinkStep; isLast: boolean }) => {
+const ReadLinkRow = ({ step }: { step: ReadLinkStep }) => {
   const t = useTranslate()
   return (
-    <ToolRow icon={<IconLinkOutline16 />} isLast={isLast}>
+    <ToolRow icon={<IconLinkOutline16 />}>
       <span className={clsx(styles.intro, styles.shimmer)}>{t('readingLink')}</span>
       {step.links.map((link) => (
         <PageLink key={link.id} page={link} />

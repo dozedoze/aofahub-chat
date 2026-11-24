@@ -1,17 +1,17 @@
-.body {
-  min-width: 0;
-  flex: 1;
+.group {
+  margin: 2px 0;
 }
 
-.head {
+.head,
+.itemHead {
   display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
-  min-height: 24px;
+  min-height: 28px;
   padding: 0;
   border: 0;
-  color: inherit;
+  color: var(--dsw-alias-label-secondary);
   font: inherit;
   text-align: left;
   background: none;
@@ -22,6 +22,17 @@
     &:hover {
       color: var(--dsw-alias-label-primary);
     }
+  }
+}
+
+.icon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--dsw-alias-label-tertiary);
+
+  svg {
+    width: 14px;
+    height: 14px;
   }
 }
 
@@ -43,6 +54,12 @@
   white-space: nowrap;
 }
 
+.count {
+  flex-shrink: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
 .server {
   flex-shrink: 0;
   max-width: 30%;
@@ -57,9 +74,14 @@
   background: var(--dsw-alias-markdown-tag);
 }
 
-.summary {
+.summary,
+.fill {
   flex: 1;
   min-width: 0;
+}
+
+.summary,
+.itemText {
   overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
   font: var(--dsw-font-xs-13);
@@ -69,7 +91,6 @@
 
 .ms {
   flex-shrink: 0;
-  margin-left: auto;
   color: var(--dsw-alias-label-caption);
   font: var(--dsw-font-xs-13);
   font-variant-numeric: tabular-nums;
@@ -78,19 +99,38 @@
 .chevron {
   display: flex;
   flex-shrink: 0;
-  margin-left: auto;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.ms + .chevron {
-  margin-left: 0;
+/* 组内逐次调用：缩进并用细竖线与外层区分 */
+.items {
+  margin: 2px 0 4px 7px;
+  padding-left: 14px;
+  border-left: 1px solid var(--dsw-alias-label-dimmed);
+}
+
+.item {
+  min-width: 0;
+}
+
+.itemHead {
+  min-height: 24px;
+}
+
+.itemText {
+  flex: 1;
+  min-width: 0;
 }
 
 .detail {
-  margin-top: 4px;
+  margin: 4px 0 6px 20px;
   padding: 8px 10px;
   border-radius: 8px;
   background: var(--dsw-alias-markdown-tag);
+}
+
+.items .detail {
+  margin-left: 0;
 }
 
 .detailTitle {
@@ -116,4 +156,44 @@
 
 .preFailed {
   color: var(--dsw-alias-label-tertiary);
+}
+
+.links {
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.linkItem {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 2px 0;
+  font: var(--dsw-font-xs-13);
+}
+
+.host {
+  flex-shrink: 0;
+  max-width: 35%;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--dsw-alias-label-primary);
+    }
+  }
 }

@@ -6,13 +6,8 @@ declare const styles: {
   readonly titleText: string
   readonly timer: string
   readonly shimmer: string
-  readonly withLine: string
   readonly content: string
-  readonly lastItem: string
-  readonly dot: string
-  readonly dotInner: string
-  readonly pulse: string
-  readonly inactive: string
+  readonly live: string
   readonly rowIcon: string
   readonly row: string
   readonly clickable: string
