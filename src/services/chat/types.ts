@@ -2,6 +2,8 @@ import type { TranslationMessage } from '../../i18n/index.js'
 import type { ApiErrorKind } from '../api/client.js'
 import type {
   ChatModel,
+  GatewayToolResultBlock,
+  GatewayToolUseBlock,
   MessageUsage,
   ServerToolBlock,
   StopDetails,
@@ -65,7 +67,12 @@ export type TextPart = {
 }
 
 /** 服务端工具调用与结果块按协议原样保存；历史请求只回传 read_link 调用与结果 */
-export type ReplyBlock = ThinkingPart | TextPart | ServerToolBlock
+export type ReplyBlock =
+  | ThinkingPart
+  | TextPart
+  | ServerToolBlock
+  | GatewayToolUseBlock
+  | GatewayToolResultBlock
 
 /**
  * pending：已发出请求，还没收到事件；streaming：正在接收；
@@ -94,6 +101,10 @@ export type AssistantMessage = MessageBranch & {
   stopDetails?: StopDetails
   /** 最近一次请求的用量，续写后更新 */
   usage?: MessageUsage
+  /** 最近一次请求收到第一个内容块的时间，用于估算输出速度；旧记录缺省 */
+  firstTokenAt?: number
+  /** 最近一次请求结束的时间；旧记录缺省 */
+  endedAt?: number
   error?: {
     /** upload：发送前补传附件失败，请求没有发出 */
     kind: ApiErrorKind | 'upload'

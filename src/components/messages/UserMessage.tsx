@@ -16,6 +16,7 @@ import {
 } from './BranchSwitcher.js'
 import { MessageFile } from './MessageFile.js'
 import { CopyButton } from './CopyButton.js'
+import { SecretText } from './SecretText.js'
 import styles from './UserMessage.module.css'
 
 export const UserMessage = memo(function UserMessage({
@@ -113,7 +114,11 @@ export const UserMessage = memo(function UserMessage({
         </div>
       ) : (
         <>
-          {message.content ? <div className={styles.bubble}>{message.content}</div> : null}
+          {message.content ? (
+            <div className={styles.bubble} data-quotable="">
+              <SecretText text={message.content} />
+            </div>
+          ) : null}
           <div className={styles.bottom}>
             <div className={clsx(styles.actions, isLast && styles.alwaysShow)}>
               {message.content ? <CopyButton text={message.content} /> : null}

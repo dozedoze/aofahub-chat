@@ -555,3 +555,76 @@ export const IconToastError16 = () => (
     />
   </svg>
 )
+
+const strokeProps = {
+  width: 16,
+  height: 16,
+  viewBox: '0 0 16 16',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.3,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  xmlns: 'http://www.w3.org/2000/svg',
+} as const
+
+/** 工具调用：扳手 */
+export const IconToolOutline16 = () => (
+  <svg {...strokeProps}>
+    <path d="M10.4 2.3a3.3 3.3 0 0 0-3.1 4.4l-4.9 4.9a1.3 1.3 0 0 0 1.9 1.9l4.9-4.9a3.3 3.3 0 0 0 4.4-3.1c0-.4-.1-.8-.2-1.1l-2 2-1.9-.5-.5-1.9 2-2a3.3 3.3 0 0 0-.6-.1z" />
+  </svg>
+)
+
+export const IconInfoOutline16 = () => (
+  <svg {...strokeProps}>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M8 7.4v3.3" />
+    <circle cx="8" cy="5.2" r="0.4" fill="currentColor" />
+  </svg>
+)
+
+export const IconKeyboardOutline16 = () => (
+  <svg {...strokeProps}>
+    <rect x="1.8" y="3.8" width="12.4" height="8.4" rx="1.8" />
+    <path d="M4.6 6.6h.01M7 6.6h.01M9.4 6.6h.01M11.6 6.6h.01M5 9.6h6" />
+  </svg>
+)
+
+export const IconQuoteOutline16 = () => (
+  <svg {...strokeProps}>
+    <path d="M3 10.4V8.2A3.2 3.2 0 0 1 6.2 5M3 10.4h2.6V8.2H3M9 10.4V8.2A3.2 3.2 0 0 1 12.2 5M9 10.4h2.6V8.2H9" />
+  </svg>
+)
+
+export const IconEyeOutline16 = () => (
+  <svg {...strokeProps}>
+    <path d="M1.6 8s2.3-4.3 6.4-4.3S14.4 8 14.4 8s-2.3 4.3-6.4 4.3S1.6 8 1.6 8z" />
+    <circle cx="8" cy="8" r="1.8" />
+  </svg>
+)
+
+export const IconEyeOffOutline16 = () => (
+  <svg {...strokeProps}>
+    <path d="M2.4 2.4l11.2 11.2M6.6 4a6.6 6.6 0 0 1 1.4-.3c4.1 0 6.4 4.3 6.4 4.3a10.6 10.6 0 0 1-2 2.5M4.2 5.5A10.3 10.3 0 0 0 1.6 8s2.3 4.3 6.4 4.3c1 0 1.9-.2 2.6-.6M6.7 6.7a1.8 1.8 0 0 0 2.6 2.6" />
+  </svg>
+)
+
+export const IconArrowDownOutline16 = () => (
+  <svg {...strokeProps}>
+    <path d="M8 3v9.5M3.8 8.6L8 12.8l4.2-4.2" />
+  </svg>
+)
+
+export const IconSearchListOutline16 = () => (
+  <svg {...strokeProps}>
+    <circle cx="7" cy="7" r="4.4" />
+    <path d="M10.4 10.4l3.2 3.2" />
+  </svg>
+)
+
+export const IconTimerOutline16 = () => (
+  <svg {...strokeProps}>
+    <circle cx="8" cy="8.6" r="5" />
+    <path d="M8 5.8v3l1.8 1.1M6.4 1.8h3.2" />
+  </svg>
+)

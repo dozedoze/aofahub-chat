@@ -15,6 +15,7 @@ import {
   IconThinkOutline16,
 } from '../base/icons.js'
 import type { AssistantMessage } from '../../services/chat/types.js'
+import { useSettings } from '../../services/settings.js'
 import {
   getAreaTitle,
   getRunningSeconds,
@@ -31,6 +32,7 @@ import {
 } from '../../services/chat/view.js'
 import { Tooltip } from '../base/Tooltip.js'
 import { Markdown } from '../markdown/Markdown.js'
+import { ToolCallRow } from './ToolCallRow.js'
 import { SiteThumbnails } from '../search/SiteLogo.js'
 import { toggleSearchPanel, useSearchPanel } from '../search/searchPanelState.js'
 import styles from './ReplyArea.module.css'
@@ -66,7 +68,11 @@ export const ReplyArea = memo(function ReplyArea({
   hasResponse: boolean
 }) {
   const t = useTranslate()
-  const [open, setOpen] = useState(true)
+  const thinkingView = useSettings((state) => state.thinkingView)
+  // 用户手动点过标题后以手动为准；否则按设置：展开 / 回答开始后自动收起 / 收起
+  const [manualOpen, setManualOpen] = useState<boolean | null>(null)
+  const open =
+    manualOpen ?? (thinkingView === 'expanded' || (thinkingView === 'auto' && !hasResponse))
   const titleActive = streaming && !hasResponse
   useTicker(titleActive, 1000)
   if (view.steps.length === 0 && !(message.thinking && streaming)) {
@@ -81,7 +87,7 @@ export const ReplyArea = memo(function ReplyArea({
   return (
     <div className={styles.area}>
       {title ? (
-        <div className={styles.title} onClick={() => setOpen((value) => !value)}>
+        <div className={styles.title} onClick={() => setManualOpen(!open)}>
           <span className={clsx(styles.titleIcon, stopped && styles.stoppedIcon)}>
             <IconThinkOutline16 />
           </span>
@@ -115,7 +121,9 @@ export const ReplyArea = memo(function ReplyArea({
 const stepKey = (step: Step, index: number) =>
   step.type === 'thinking' || step.type === 'text' || step.type === 'search'
     ? step.key
-    : `${step.type}-${index}`
+    : step.type === 'tool'
+      ? `tool-${step.id}`
+      : `${step.type}-${index}`
 
 const StepItem = ({
   step,
@@ -166,6 +174,14 @@ const StepItem = ({
       return <FindRow step={step} isLast={isLast} />
     case 'read_link':
       return <ReadLinkRow step={step} isLast={isLast} />
+    case 'tool':
+      return (
+        <ToolCallRow
+          step={step}
+          interrupted={!streaming && message.status === 'stopped'}
+          isLast={isLast}
+        />
+      )
     default:
       return null
   }

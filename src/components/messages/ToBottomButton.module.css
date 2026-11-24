@@ -1,0 +1,39 @@
+.button {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-menu-surface-fill, var(--dsw-alias-bg-base));
+  box-shadow: var(--dsw-elevation-panel, 0 4px 14px rgba(0, 0, 0, 0.14));
+  cursor: pointer;
+  transform: translateX(-50%);
+  animation: appear 0.15s ease-out;
+}
+
+@media (hover: hover) {
+  .button:hover {
+    color: var(--dsw-alias-label-primary);
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    animation: none;
+  }
+}

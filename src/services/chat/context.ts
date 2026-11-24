@@ -165,7 +165,9 @@ export type ContextUsage = {
 type ReportedUsage = NonNullable<AssistantMessage['usage']>
 
 const inputTokens = (usage: ReportedUsage) =>
-  usage.input_tokens + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0)
+  usage.input_tokens +
+  (usage.cache_creation_input_tokens ?? 0) +
+  (usage.cache_read_input_tokens ?? 0)
 
 /** 输入量为 0 说明上游没给用量（只剩一个输出数），不能当作回报，否则会把整段上下文算成几十个 token。 */
 const hasReportedUsage = (message: AssistantMessage) =>
@@ -208,7 +210,11 @@ export const getContextUsage = (
   const covered = usageReply ? visible.slice(0, usageIndex + 1) : visible
   const rounds = getContextRounds(covered)
   const previous = visible[usageIndex - 1]
-  if (usageReply && previous?.role === 'user' && !rounds.some(([, reply]) => reply === usageReply)) {
+  if (
+    usageReply &&
+    previous?.role === 'user' &&
+    !rounds.some(([, reply]) => reply === usageReply)
+  ) {
     // 正在生成或没有正文的回复：本轮提问和回复同样计入回报。
     rounds.push([previous, usageReply])
   }
@@ -230,7 +236,10 @@ export const getContextUsage = (
     for (const [key, value] of Object.entries(local) as [ContextSegmentKey, number][]) {
       parts[key] = Math.round(value * scale)
     }
-    parts.server = Math.max(0, reported - Object.values(parts).reduce((sum, value) => sum + value, 0))
+    parts.server = Math.max(
+      0,
+      reported - Object.values(parts).reduce((sum, value) => sum + value, 0)
+    )
     // 回报之后又产生的、可进入上下文的轮次，按估算累加。
     for (const [user, reply] of getContextRounds(visible.slice(usageIndex + 1))) {
       const extra: Parts = {}

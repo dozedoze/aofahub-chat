@@ -139,6 +139,23 @@ const readBlock = (value: unknown): OutputBlockStart | null => {
         signature: isOptionalString(value.signature) ? value.signature : undefined,
       } as OutputBlockStart
     }
+    case 'gateway_tool_use':
+      if (!isString(value.id) || !isString(value.name) || !isRecord(value.input)) {
+        return null
+      }
+      break
+    case 'gateway_tool_result':
+      if (!isString(value.tool_use_id) || !isString(value.name) || !isString(value.content)) {
+        return null
+      }
+      return {
+        type: 'gateway_tool_result',
+        tool_use_id: value.tool_use_id,
+        name: value.name,
+        is_error: value.is_error === true,
+        content: value.content,
+        ...(typeof value.ms === 'number' && Number.isFinite(value.ms) ? { ms: value.ms } : {}),
+      }
     case 'tool_use':
       // 不展示客户端工具内容；交给回复归并层关闭这条回复的续写能力。
       break

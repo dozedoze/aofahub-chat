@@ -1,5 +1,5 @@
 import { useTranslate } from '../../i18n/index.js'
-import { memo, useEffect, useMemo, useReducer, useState } from 'react'
+import { memo, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import Prism from 'prismjs'
 import {
   getHighlightLang,
@@ -69,6 +69,35 @@ const CodeInfoRow = ({
   )
 }
 
+/** 流式中超过这个长度才分组高亮；短代码整段高亮，颜色不会在结束时跳变 */
+const CHUNK_THRESHOLD = 3000
+/** 每组的行数；已完成的整组高亮后不再重算 */
+const CHUNK_LINES = 60
+
+type ChunkCache = { lang: string; source: string; html: string[] }
+
+/**
+ * 流式增量高亮：只高亮已完成的行，每满一组就固定下来复用，当前未写完的行按纯文本接在后面。
+ * 每次追加的耗时只跟尾部长度有关。分组之间不传递语法状态，跨组的多行注释在流式中可能暂时着色不准，
+ * 结束后整段重新高亮会修正。
+ */
+const highlightChunked = (code: string, lang: string, cache: ChunkCache | null) => {
+  const base = cache && cache.lang === lang && code.startsWith(cache.source) ? cache : null
+  const html = base ? [...base.html] : []
+  let source = base ? base.source : ''
+  const lines = code.slice(source.length).split('\n')
+  const partial = lines.pop() ?? ''
+  while (lines.length >= CHUNK_LINES) {
+    const text = lines.splice(0, CHUNK_LINES).join('\n') + '\n'
+    html.push(Prism.highlight(text, Prism.languages[lang], lang))
+    source += text
+  }
+  const rest = lines.length > 0 ? lines.join('\n') + '\n' : ''
+  const tail = rest ? Prism.highlight(rest, Prism.languages[lang], lang) : ''
+  const escaped = partial.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  return { cache: { lang, source, html }, html: html.join('') + tail + escaped }
+}
+
 /** 代码块：语言包按需加载，不支持或尚未加载的语言按纯文本显示 */
 export const CodeBlock = memo(function CodeBlock({
   code,
@@ -99,10 +128,17 @@ export const CodeBlock = memo(function CodeBlock({
       unmounted = true
     }
   }, [lang, loaded, rerender])
+  const chunkRef = useRef<ChunkCache | null>(null)
   const renderedHtml = useMemo(() => {
     const name = lang !== null && loaded ? lang : 'plaintext'
+    if (loading && code.length > CHUNK_THRESHOLD) {
+      const result = highlightChunked(code, name, chunkRef.current)
+      chunkRef.current = result.cache
+      return result.html
+    }
+    chunkRef.current = null
     return Prism.highlight(code, Prism.languages[name], name)
-  }, [code, lang, loaded])
+  }, [code, lang, loaded, loading])
   return (
     <div className="md-code-block">
       <div className="md-code-block-banner">

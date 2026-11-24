@@ -1,0 +1,119 @@
+.body {
+  min-width: 0;
+  flex: 1;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: none;
+  cursor: pointer;
+  transition: color 0.2s;
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--dsw-alias-label-primary);
+    }
+  }
+}
+
+.verb {
+  flex-shrink: 0;
+}
+
+.failed {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.label {
+  flex-shrink: 0;
+  max-width: 40%;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.server {
+  flex-shrink: 0;
+  max-width: 30%;
+  overflow: hidden;
+  padding: 0 5px;
+  border-radius: 6px;
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-xs-13);
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--dsw-alias-markdown-tag);
+}
+
+.summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font: var(--dsw-font-xs-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ms {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xs-13);
+  font-variant-numeric: tabular-nums;
+}
+
+.chevron {
+  display: flex;
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.ms + .chevron {
+  margin-left: 0;
+}
+
+.detail {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--dsw-alias-markdown-tag);
+}
+
+.detailTitle {
+  margin: 2px 0 4px;
+  color: var(--dsw-alias-label-tertiary);
+  font: var(--dsw-font-xs-13);
+}
+
+.pre + .detailTitle {
+  margin-top: 10px;
+}
+
+.pre {
+  max-height: 220px;
+  margin: 0;
+  overflow: auto;
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-xs-13);
+  font-family: var(--dsw-font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.preFailed {
+  color: var(--dsw-alias-label-tertiary);
+}

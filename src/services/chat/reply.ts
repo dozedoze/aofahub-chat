@@ -50,6 +50,8 @@ const toReplyBlock = (block: OutputBlockStart, now: number): ReplyBlock | null =
     case 'server_tool_use':
     case 'web_search_tool_result':
     case 'web_fetch_tool_result':
+    case 'gateway_tool_use':
+    case 'gateway_tool_result':
       return block
     default:
       return null
@@ -107,7 +109,13 @@ export const applyEvent = (
     reply.status === 'streaming' ? reply : { ...reply, status: 'streaming' }
   switch (event.type) {
     case 'message_start':
-      return { ...next, usage: event.message.usage ?? next.usage }
+      // 续写会重新开始计时：速度只按最近一次请求计算。
+      return {
+        ...next,
+        usage: event.message.usage ?? next.usage,
+        firstTokenAt: undefined,
+        endedAt: undefined,
+      }
     case 'content_block_start': {
       blockIndexes.delete(event.index)
       const block = toReplyBlock(event.content_block, now)
@@ -116,7 +124,11 @@ export const applyEvent = (
         return event.content_block.type === 'tool_use' ? { ...next, prefix: false } : next
       }
       blockIndexes.set(event.index, next.blocks.length)
-      return { ...next, blocks: [...next.blocks, block] }
+      return {
+        ...next,
+        firstTokenAt: next.firstTokenAt ?? now,
+        blocks: [...next.blocks, block],
+      }
     }
     case 'content_block_delta': {
       const index = blockIndexes.get(event.index)
@@ -177,6 +189,7 @@ export const settleReply = (
   ...reply,
   status,
   error,
+  endedAt: now,
   blocks: reply.blocks.flatMap((block): ReplyBlock[] => {
     if (reply.stopReason === 'refusal' && (block.type === 'thinking' || block.type === 'text')) {
       return []
@@ -207,6 +220,9 @@ export const canContinueReply = (reply: AssistantMessage): boolean => {
         block.type === 'server_tool_use' ||
         block.type === 'web_search_tool_result' ||
         block.type === 'web_fetch_tool_result' ||
+        // 网关接手的工具往返无法还原成续写前缀。
+        block.type === 'gateway_tool_use' ||
+        block.type === 'gateway_tool_result' ||
         (block.type === 'text' && block.isTemplate)
     )
   ) {

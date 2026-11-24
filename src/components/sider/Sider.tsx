@@ -4,6 +4,7 @@ import { useTranslate } from '../../i18n/index.js'
 import {
   IconLogoutOutline16,
   IconPanelLeftOutline16,
+  IconSearchOutline16,
   IconSettingsOutline16,
   NewChatIcon,
 } from '../base/icons.js'
@@ -16,6 +17,7 @@ import { Button } from '../base/Button.js'
 import { IconButton } from '../base/IconButton.js'
 import { Modal } from '../base/Modal.js'
 import { showToast } from '../base/toastState.js'
+import { openSessionSearch } from '../shortcuts/shortcutsState.js'
 import { openSettings } from '../settings/settingsDialogState.js'
 import { closeMobileSider, useMobileSider } from './mobileSiderState.js'
 import { SessionItem } from './SessionItem.js'
@@ -79,6 +81,12 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           <NewChatIcon />
         </span>
         {t('newChat')}
+      </button>
+      <button type="button" className={styles.newChat} onClick={openSessionSearch}>
+        <span className={styles.newChatIcon}>
+          <IconSearchOutline16 />
+        </span>
+        {t('searchChats')}
       </button>
       <div className={styles.listWrap}>
         <div className={styles.list}>

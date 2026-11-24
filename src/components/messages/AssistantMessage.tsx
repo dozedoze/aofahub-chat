@@ -1,7 +1,7 @@
 import { useTranslate } from '../../i18n/index.js'
 import clsx from 'clsx'
-import { memo } from 'react'
-import { IconRefreshOutline16, IconWarningOutline16 } from '../base/icons.js'
+import { memo, useState } from 'react'
+import { IconRefreshOutline16, IconUsageOutline16, IconWarningOutline16 } from '../base/icons.js'
 import { describeReply } from '../../services/chat/describe.js'
 import { canContinueReply } from '../../services/chat/reply.js'
 import { continueReply, regenerateReply } from '../../services/chat/store.js'
@@ -16,6 +16,7 @@ import { toggleSearchPanel, useSearchPanel } from '../search/searchPanelState.js
 import { ReadAloudButton } from './ReadAloudButton.js'
 import { CopyButton } from './CopyButton.js'
 import { ReplyArea } from './ReplyArea.js'
+import { TurnUsage } from './TurnUsage.js'
 import { useReplyView } from './useReplyView.js'
 import {
   BranchSwitcher,
@@ -45,6 +46,7 @@ export const AssistantMessage = memo(function AssistantMessage({
 }) {
   const t = useTranslate()
   const view = useReplyView(message, streaming)
+  const [usageOpen, setUsageOpen] = useState(false)
   const panelEntry = useSearchPanel((state) => state.entry)
   const notice = streaming ? null : describeReply(message)
   // 安全拒绝：已下发的思考与正文按协议丢弃，只显示模板答复。
@@ -67,14 +69,17 @@ export const AssistantMessage = memo(function AssistantMessage({
         />
       )}
       {answer ? (
-        <Markdown
-          className="ds-assistant-message-main-content"
-          content={answer.markdown}
-          loading={streaming}
-          cacheKey={message.id}
-          disableLink={false}
-          sources={view.sources}
-        />
+        // 回答结束后才允许选中引用，流式中内容还在变。
+        <div data-quotable={streaming ? undefined : ''}>
+          <Markdown
+            className="ds-assistant-message-main-content"
+            content={answer.markdown}
+            loading={streaming}
+            cacheKey={message.id}
+            disableLink={false}
+            sources={view.sources}
+          />
+        </div>
       ) : null}
       {waiting ? (
         <div className={styles.waiting}>
@@ -146,6 +151,15 @@ export const AssistantMessage = memo(function AssistantMessage({
             {responseText && !refused && isDeepseekModel(message.model ?? '') ? (
               <ReadAloudButton messageId={message.id} text={responseText} />
             ) : null}
+            {message.usage ? (
+              <IconButton
+                icon={<IconUsageOutline16 />}
+                tooltip={t('turnUsageToggle')}
+                tooltipPlacement="bottom"
+                aria-pressed={usageOpen}
+                onClick={() => setUsageOpen((open) => !open)}
+              />
+            ) : null}
             <IconButton
               icon={<IconRefreshOutline16 />}
               tooltip={t('regenerate')}
@@ -173,6 +187,7 @@ export const AssistantMessage = memo(function AssistantMessage({
           ) : null}
         </div>
       )}
+      {!streaming && usageOpen ? <TurnUsage message={message} /> : null}
     </div>
   )
 })

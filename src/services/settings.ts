@@ -5,6 +5,9 @@ import { normalizeLocation, type UserLocation } from './location.js'
 
 export type Locale = 'zh-CN' | 'en-US'
 
+/** 思考与工具步骤区的默认展开方式：始终展开 / 回答开始后自动收起 / 始终收起 */
+export type ThinkingView = 'expanded' | 'auto' | 'collapsed'
+
 /** 主题偏好；默认跟随系统 */
 export type ThemePreference = 'light' | 'dark' | 'system'
 
@@ -25,6 +28,7 @@ type Settings = {
   /** 已有对话里用户点过的开关，只在本次页面内存中；刷新后以该对话最近一次回复为准 */
   sessionThinking: Record<string, boolean>
   siderCollapsed: boolean
+  thinkingView: ThinkingView
 }
 
 const KEYS = {
@@ -35,6 +39,7 @@ const KEYS = {
   model: 'chat-demo:model',
   thinking: 'chat-demo:thinking',
   siderCollapsed: 'chat-demo:sider-collapsed',
+  thinkingView: 'chat-demo:thinking-view',
 } as const
 
 const read = (key: string) => {
@@ -99,6 +104,11 @@ const initialThemePreference = (): ThemePreference => {
 /** 未保存过时使用服务端默认音色 stella（海星） */
 const initialTtsVoice = (): TtsVoice => (read(KEYS.ttsVoice) === 'tide' ? 'tide' : 'stella')
 
+const initialThinkingView = (): ThinkingView => {
+  const saved = read(KEYS.thinkingView)
+  return saved === 'auto' || saved === 'collapsed' ? saved : 'expanded'
+}
+
 const initialModel = (): string => read(KEYS.model) || 'auto'
 
 export const useSettings = create<Settings>(() => {
@@ -119,6 +129,7 @@ export const useSettings = create<Settings>(() => {
     thinking: initialThinking(),
     sessionThinking: {},
     siderCollapsed: read(KEYS.siderCollapsed) === 'true',
+    thinkingView: initialThinkingView(),
   }
 })
 
@@ -237,4 +248,9 @@ export const setThinking = (sessionId: string | null, thinking: boolean) => {
 export const setSiderCollapsed = (siderCollapsed: boolean) => {
   write(KEYS.siderCollapsed, String(siderCollapsed))
   useSettings.setState({ siderCollapsed })
+}
+
+export const setThinkingView = (thinkingView: ThinkingView) => {
+  write(KEYS.thinkingView, thinkingView)
+  useSettings.setState({ thinkingView })
 }

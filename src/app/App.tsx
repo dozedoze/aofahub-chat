@@ -16,6 +16,11 @@ import { SessionView } from '../components/session/SessionView.js'
 import { MobileHeader } from '../components/session/MobileHeader.js'
 import { Welcome } from '../components/session/Welcome.js'
 import { LoginPage } from '../components/login/LoginPage.js'
+import { ShortcutsDialog } from '../components/shortcuts/ShortcutsDialog.js'
+import { SessionSearch } from '../components/shortcuts/SessionSearch.js'
+import { installMathCopy } from '../services/markdown/copyMath.js'
+import { bindQueue } from '../services/chat/queue.js'
+import { useGlobalShortcuts } from './useGlobalShortcuts.js'
 import { SettingsDialog } from '../components/settings/SettingsDialog.js'
 import { Toast } from '../components/base/Toast.js'
 import { showToast } from '../components/base/toastState.js'
@@ -53,6 +58,7 @@ export const App = () => {
   const activeId = useChatStore((state) => state.activeId)
 
   usePreventPageScroll(isMobile)
+  useGlobalShortcuts(isMobile)
 
   useEffect(() => {
     document.documentElement.lang = locale
@@ -61,6 +67,8 @@ export const App = () => {
   // 文件数、存储空间达到上限时，附件上只显示「上传失败」，原因用 toast 说明
   useEffect(() => onUploadNotice(showToast), [])
   useEffect(bindChatPersistence, [])
+  useEffect(bindQueue, [])
+  useEffect(installMathCopy, [])
 
   // 搜索结果面板只属于当前会话
   useEffect(closeSearchPanel, [activeId])
@@ -150,6 +158,8 @@ export const App = () => {
         <SearchPanel />
       </div>
       <SettingsDialog />
+      <ShortcutsDialog />
+      <SessionSearch />
       <Toast />
     </>
   )

@@ -8,6 +8,7 @@ import type {
   WebSearchToolResultBlock,
 } from '../api/types.js'
 import type { AssistantMessage, ThinkingPart } from './types.js'
+import type { GatewayToolResultBlock } from '../api/types.js'
 
 /**
  * 由回复的内容块推导界面需要的结构：思考与工具步骤的时间线、带引用角标的正文、可引用的来源列表。
@@ -67,7 +68,34 @@ export type ThinkingStep = { type: 'thinking'; key: string; blocks: ThinkingPart
 /** 工具调用前输出的说明文字 */
 export type PreambleStep = { type: 'text'; key: string; markdown: string }
 
-export type Step = SearchStep | OpenStep | FindStep | ReadLinkStep | ThinkingStep | PreambleStep
+/** 网关接手的工具调用：联网搜索、读网页、用户的 MCP 与 Skill */
+export type ToolStep = {
+  type: 'tool'
+  /** 调用 ID */
+  id: string
+  /** 原始工具名，如 mcp__github__search */
+  name: string
+  /** 展示名：MCP 工具去掉 server 前缀 */
+  label: string
+  /** MCP server 名；其他工具为 null */
+  server: string | null
+  input: Record<string, unknown>
+  /** 入参里最能说明这次调用的一项，用于单行展示 */
+  summary: string
+  status: ToolStatus
+  /** 结果摘要；未返回时为 null */
+  result: string | null
+  ms: number | null
+}
+
+export type Step =
+  | SearchStep
+  | OpenStep
+  | FindStep
+  | ReadLinkStep
+  | ThinkingStep
+  | PreambleStep
+  | ToolStep
 
 export type ReplyView = {
   steps: Step[]
@@ -85,6 +113,37 @@ export const getSiteName = (url: string) => {
   } catch {
     return ''
   }
+}
+
+/** mcp__{server}__{tool} 拆成 server 与工具名；其他名字原样返回。 */
+export const parseToolName = (name: string): { server: string | null; label: string } => {
+  const match = /^mcp__(.+?)__(.+)$/.exec(name)
+  return match ? { server: match[1], label: match[2] } : { server: null, label: name }
+}
+
+const SUMMARY_KEYS = ['query', 'url', 'name', 'q', 'path', 'command', 'text', 'prompt']
+const SUMMARY_MAX = 80
+
+const clip = (text: string) => {
+  const line = text.replace(/\s+/g, ' ').trim()
+  return line.length > SUMMARY_MAX ? `${line.slice(0, SUMMARY_MAX)}…` : line
+}
+
+/** 取入参里最能说明调用的一项：优先常见字段，其次第一个短字符串，最后回退到压缩后的 JSON。 */
+export const summarizeToolInput = (input: Record<string, unknown>): string => {
+  for (const key of SUMMARY_KEYS) {
+    const value = input[key]
+    if (typeof value === 'string' && value.trim()) {
+      return clip(value)
+    }
+  }
+  for (const value of Object.values(input)) {
+    if (typeof value === 'string' && value.trim()) {
+      return clip(value)
+    }
+  }
+  const keys = Object.keys(input)
+  return keys.length === 0 ? '' : clip(JSON.stringify(input))
 }
 
 const getStatus = (
@@ -188,6 +247,13 @@ export const buildReplyView = (reply: AssistantMessage, streaming: boolean): Rep
     }
   }
 
+  const gatewayResults = new Map<string, GatewayToolResultBlock>()
+  for (const block of reply.blocks) {
+    if (block.type === 'gateway_tool_result') {
+      gatewayResults.set(block.tool_use_id, block)
+    }
+  }
+
   const registry = new SourceRegistry()
   const searchResults: Source[] = []
   const steps: Step[] = []
@@ -251,6 +317,24 @@ export const buildReplyView = (reply: AssistantMessage, streaming: boolean): Rep
         mergedThinking = { type: 'thinking', key: `thinking-${index}`, blocks: [block] }
         steps.push(mergedThinking)
       }
+      return
+    }
+    if (block.type === 'gateway_tool_use') {
+      flushPreamble()
+      const done = gatewayResults.get(block.id)
+      const { server, label } = parseToolName(block.name)
+      steps.push({
+        type: 'tool',
+        id: block.id,
+        name: block.name,
+        label,
+        server,
+        input: block.input,
+        summary: summarizeToolInput(block.input),
+        status: done ? (done.is_error ? 'failed' : 'done') : streaming ? 'wip' : 'failed',
+        result: done?.content ?? null,
+        ms: done?.ms ?? null,
+      })
       return
     }
     if (block.type !== 'server_tool_use') {
@@ -411,6 +495,9 @@ export const getAreaTitle = (
   }
   if (last?.type === 'read_link' && last.links.some((link) => link.status === 'wip')) {
     return translate('readingLink')
+  }
+  if (last?.type === 'tool' && last.status === 'wip') {
+    return translate('toolCallRunning', { name: last.label })
   }
   return translate('messageThinking')
 }

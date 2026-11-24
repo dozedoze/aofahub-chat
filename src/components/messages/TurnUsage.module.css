@@ -1,0 +1,25 @@
+.usage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0 0 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.item {
+  display: flex;
+  gap: 6px;
+}
+
+.item dt {
+  margin: 0;
+}
+
+.item dd {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+}

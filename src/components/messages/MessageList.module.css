@@ -35,3 +35,9 @@
   margin: 0 auto;
   padding-bottom: 24px;
 }
+
+/* 历史消息交给浏览器按可见性跳过渲染，长会话打开与流式输出时不必为屏幕外的内容付出样式和布局成本 */
+.deferred {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}

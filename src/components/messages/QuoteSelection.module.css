@@ -1,0 +1,22 @@
+.button {
+  position: fixed;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 15px;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xs-13);
+  background: var(--dsw-menu-surface-fill, var(--dsw-alias-bg-base));
+  box-shadow: var(--dsw-elevation-panel, 0 4px 14px rgba(0, 0, 0, 0.14));
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .button:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
+}

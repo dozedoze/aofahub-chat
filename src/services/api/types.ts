@@ -118,6 +118,29 @@ export type ServerToolBlock =
   | WebSearchToolResultBlock
   | WebFetchToolResultBlock
 
+/**
+ * 网关接手执行的工具调用（联网搜索、读网页、用户的 MCP 与 Skill），只用于界面展示。
+ * 网关仅对聊天前端下发，不会回传给模型；调用块在入参完整后下发，结果块在执行完成后下发。
+ */
+export type GatewayToolUseBlock = {
+  type: 'gateway_tool_use'
+  id: string
+  /** web_search、fetch_url、load_skill，或 mcp__{server}__{tool} */
+  name: string
+  input: Record<string, unknown>
+}
+
+export type GatewayToolResultBlock = {
+  type: 'gateway_tool_result'
+  tool_use_id: string
+  name: string
+  is_error: boolean
+  /** 结果摘要，网关已去掉外壳并截断 */
+  content: string
+  /** 执行耗时（毫秒） */
+  ms?: number
+}
+
 /** 用于识别客户端工具调用的内容块类型 */
 export type ToolUseBlock = { type: 'tool_use'; id: string; name: string; input: unknown }
 
@@ -199,7 +222,13 @@ export type MessageUsage = {
 }
 
 /** content_block_start 携带的初始内容块；工具块已是完整内容 */
-export type OutputBlockStart = TextBlock | ThinkingBlock | ServerToolBlock | ToolUseBlock
+export type OutputBlockStart =
+  | TextBlock
+  | ThinkingBlock
+  | ServerToolBlock
+  | GatewayToolUseBlock
+  | GatewayToolResultBlock
+  | ToolUseBlock
 
 export type ContentBlockDelta =
   | { type: 'text_delta'; text: string }

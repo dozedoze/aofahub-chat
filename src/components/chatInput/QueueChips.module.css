@@ -1,0 +1,65 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0 0 8px;
+  list-style: none;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 6px 4px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+  background-color: var(--dsw-alias-fill-tertiary, rgb(0 0 0 / 4%));
+}
+
+.badge {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+  background-color: var(--dsw-alias-fill-secondary, rgb(0 0 0 / 6%));
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--dsw-alias-label-tertiary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--dsw-alias-primary-default, currentColor);
+  outline-offset: 1px;
+}
+
+@media (hover: hover) {
+  .action:hover {
+    color: var(--dsw-alias-label-primary);
+    background-color: var(--dsw-alias-fill-secondary, rgb(0 0 0 / 6%));
+  }
+}

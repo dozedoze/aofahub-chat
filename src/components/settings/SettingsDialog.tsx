@@ -27,15 +27,18 @@ import {
   setLocation,
   setModel,
   setThemePreference,
+  setThinkingView,
   setTtsVoice,
   useSettings,
   type ThemePreference,
+  type ThinkingView,
 } from '../../services/settings.js'
 import { useTranslate, type TranslationKey, type TranslationMessage } from '../../i18n/index.js'
 import { Button } from '../base/Button.js'
 import { Modal } from '../base/Modal.js'
 import { Select } from '../base/Select.js'
 import { showToast } from '../base/toastState.js'
+import { openShortcuts } from '../shortcuts/shortcutsState.js'
 import { ExtensionsSettings } from './ExtensionsSettings.js'
 import { closeSettings, useSettingsDialog, type SettingsSection } from './settingsDialogState.js'
 import styles from './Settings.module.css'
@@ -106,9 +109,24 @@ const SettingsContent = () => {
               <UsageSetting />
               <ModelSetting />
               <ThemeSetting />
+              <ThinkingViewSetting />
               <LocaleSetting />
               <TtsVoiceSetting />
               <LocationSetting />
+              <SettingCell
+                label={t('shortcutsSettingLabel')}
+                status={null}
+                action={
+                  <Button
+                    variant="outlined"
+                    size="m"
+                    className={styles.cellButton}
+                    onClick={openShortcuts}
+                  >
+                    {t('shortcutsSettingView')}
+                  </Button>
+                }
+              />
             </>
           ) : section === 'extensions' ? (
             <ExtensionsSettings />
@@ -579,6 +597,40 @@ const ThemeSetting = () => {
             onClick={() => setThemePreference(option.value)}
           >
             {option.icon}
+            {t(option.label)}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const thinkingViewOptions: { value: ThinkingView; label: TranslationKey }[] = [
+  { value: 'expanded', label: 'thinkingViewExpanded' },
+  { value: 'auto', label: 'thinkingViewAuto' },
+  { value: 'collapsed', label: 'thinkingViewCollapsed' },
+]
+
+const ThinkingViewSetting = () => {
+  const t = useTranslate()
+  const thinkingView = useSettings((state) => state.thinkingView)
+  const label = t('thinkingViewLabel')
+  return (
+    <div className={styles.theme}>
+      {label}
+      <div role="radiogroup" aria-label={label} className={styles.themeOptions}>
+        {thinkingViewOptions.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={thinkingView === option.value}
+            className={clsx(
+              styles.themeOption,
+              thinkingView === option.value && styles.themeOptionSelected
+            )}
+            onClick={() => setThinkingView(option.value)}
+          >
             {t(option.label)}
           </button>
         ))}

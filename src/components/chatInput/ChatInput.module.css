@@ -343,3 +343,9 @@
     cursor: not-allowed;
   }
 }
+
+/* 斜杠命令菜单要伸出输入框外，而输入框本身 overflow: hidden，所以菜单挂在外面这一层 */
+.anchor {
+  position: relative;
+  width: 100%;
+}

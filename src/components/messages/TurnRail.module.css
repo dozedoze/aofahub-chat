@@ -1,0 +1,89 @@
+.rail {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  max-height: 56%;
+  overflow: hidden;
+  transform: translateY(-50%);
+}
+
+.mark {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 28px;
+  height: 12px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.tick {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--dsw-alias-label-dimmed);
+  transition:
+    width 0.15s,
+    background-color 0.15s;
+}
+
+.active .tick {
+  width: 20px;
+  background: var(--dsw-alias-label-secondary);
+}
+
+.preview {
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  display: none;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: 240px;
+  margin-right: 6px;
+  padding: 6px 10px;
+  overflow: hidden;
+  border-radius: 8px;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xs-13);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+  background: var(--dsw-menu-surface-fill, var(--dsw-alias-bg-base));
+  box-shadow: var(--dsw-elevation-panel, 0 4px 14px rgba(0, 0, 0, 0.12));
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.mark:focus-visible .preview {
+  display: block;
+}
+
+.mark:focus-visible .tick {
+  background: var(--dsw-alias-label-primary);
+}
+
+@media (hover: hover) {
+  .mark:hover .preview {
+    display: block;
+  }
+
+  .mark:hover .tick {
+    background: var(--dsw-alias-label-secondary);
+  }
+}
+
+/* 对话区放不下时隐藏，不挤占阅读宽度 */
+@media (max-width: 1100px) {
+  .rail {
+    display: none;
+  }
+}
