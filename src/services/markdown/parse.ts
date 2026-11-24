@@ -1,4 +1,4 @@
-import type { Node as MdAstNode, Nodes, Parent, RootContent, Root, Text } from 'mdast'
+import type { Node as MdAstNode, Nodes, Parent, RootContent, Root, Strong, Text } from 'mdast'
 import { findAndReplace } from 'mdast-util-find-and-replace'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { gfmFromMarkdown } from 'mdast-util-gfm'
@@ -47,6 +47,12 @@ const parse = (
     mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
   })
   const sourcesByUrl = new Map((sources ?? []).map((source) => [source.url, source]))
+  // CommonMark 规则下，`**` 一侧贴标点、另一侧贴汉字时不算定界符（如 **“词”**后文），
+  // 解析后会剩成文本里的 `**…**`；这里在单个文本节点内补回加粗。
+  findAndReplace(ast, [
+    /\*\*(?=\S)([^*\n]*?\S)\*\*/g,
+    (_: string, inner: string): Strong => ({ type: 'strong', children: [text(inner)] }),
+  ])
   if (sources) {
     const sourcesByIndex = new Map(sources.map((source) => [source.index, source]))
     findAndReplace(
