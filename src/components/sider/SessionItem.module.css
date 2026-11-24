@@ -45,6 +45,11 @@
   margin-left: 4px;
 }
 
+/* 菜单打开期间保持可见，否则鼠标移到浮层后触发元素被隐藏，浮层会失去定位基准 */
+.actionOpen {
+  display: flex;
+}
+
 .renameInput {
   box-sizing: border-box;
   width: 100%;

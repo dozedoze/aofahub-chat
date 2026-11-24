@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition, useDismiss } from './anchored.js'
 import styles from './Menu.module.css'
@@ -16,11 +16,19 @@ export type MenuOption = {
 export const Menu = ({
   options,
   children,
+  onOpenChange,
 }: {
   options: MenuOption[]
   children: (props: { open: boolean; toggle: () => void }) => ReactNode
+  onOpenChange?: (open: boolean) => void
 }) => {
-  const [open, setOpen] = useState(false)
+  const [open, setOpenState] = useState(false)
+  const onOpenChangeRef = useRef(onOpenChange)
+  onOpenChangeRef.current = onOpenChange
+  useEffect(() => {
+    onOpenChangeRef.current?.(open)
+  }, [open])
+  const setOpen = setOpenState
   const close = () => setOpen(false)
   // 左侧对齐并再左移 5px，让菜单文字与触发元素图标对齐
   const { anchorRef, floatingRef, position } = useAnchoredPosition<HTMLSpanElement, HTMLDivElement>(
@@ -39,7 +47,7 @@ export const Menu = ({
             <div
               ref={floatingRef}
               className={styles.menu}
-              style={position ?? undefined}
+              style={position ?? { visibility: 'hidden' }}
               role="menu"
             >
               {options.map((option) => (
